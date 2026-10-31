@@ -25,10 +25,17 @@ def make_handler(player, lib):
             self.end_headers()
             self.wfile.write(body)
 
+        def _host_ok(self):
+            # DNS-rebinding guard: only our own loopback origin may talk to us
+            host = (self.headers.get("Host") or "").rsplit(":", 1)[0]
+            return host in ("127.0.0.1", "localhost", "[::1]", "::1")
+
         def log_message(self, *a):  # quiet
             pass
 
         def do_GET(self):
+            if not self._host_ok():
+                return self._json({"error": "bad host"}, 403)
             if self.path == "/":
                 body = INDEX_HTML.encode()
                 self.send_response(200)
@@ -44,8 +51,13 @@ def make_handler(player, lib):
                 self.send_error(404)
 
         def do_POST(self):
+            if not self._host_ok():
+                return self._json({"error": "bad host"}, 403)
             length = int(self.headers.get("Content-Length", 0))
-            data = json.loads(self.rfile.read(length) or b"{}")
+            try:
+                data = json.loads(self.rfile.read(length) or b"{}")
+            except ValueError:
+                return self._json({"error": "malformed JSON"}, 400)
 
             if self.path == "/api/chat":
                 text = str(data.get("text", "")).strip()

@@ -25,6 +25,8 @@ def _assert_safe(url):
     if u.scheme == "https" and u.hostname == "api.openai.com":
         return
     if u.scheme == "http" and u.hostname in ("localhost", "127.0.0.1", "::1"):
+        if u.hostname in ("127.0.0.1", "::1"):
+            return  # literal loopback IPs — no resolution needed
         ip = socket.gethostbyname(u.hostname)  # pin resolution, block DNS rebinding
         if ip.startswith("127."):
             return

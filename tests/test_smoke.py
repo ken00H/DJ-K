@@ -189,5 +189,21 @@ class Beatmatch(unittest.TestCase):
         self.assertIsNone(self.bm.cached_bpm(str(f)))
 
 
+class LLMURLGuard(unittest.TestCase):
+    def test_loopback_literals_allowed(self):
+        from dj import llm
+        for url in ("http://127.0.0.1:8080/v1/chat/completions",
+                    "http://[::1]:8080/v1/chat/completions",
+                    "http://localhost:11434/api/chat"):
+            llm._assert_safe(url)  # must not raise
+        llm._assert_safe("https://api.openai.com/v1/chat/completions")
+
+    def test_remote_blocked(self):
+        from dj import llm
+        for url in ("http://evil.com:8080/x", "https://evil.com/y",
+                    "ftp://127.0.0.1/z", "http://192.168.1.5:8080/x"):
+            self.assertRaises(ValueError, llm._assert_safe, url)
+
+
 if __name__ == "__main__":
     unittest.main()

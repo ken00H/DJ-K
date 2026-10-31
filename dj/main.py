@@ -119,8 +119,11 @@ def main():
             player.stop()
             continue
         if msg == "/list":
-            for t in library.search(lib, "") or lib:
-                print(f"  {t['name']}")
+            names = [t["name"] for t in (library.search(lib, "") or lib)]
+            for n in names[:30]:
+                print(f"  {n}")
+            if len(names) > 30:
+                print(f"{DIM}  … and {len(names) - 30} more — use the web UI library browser{RESET}")
             continue
         if msg == "/rescan":
             lib = library.scan(force=True)

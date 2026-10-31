@@ -3,6 +3,13 @@
 All notable changes to DJ Jamal are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.7.1] — 2026-11-01
+
+### Fixed (hardening sweep — closes the original audit's improvement list)
+- `llm._assert_safe`: `::1` URLs no longer crash on `gethostbyname` (literal loopback IPs skip resolution)
+- Web API: malformed JSON now returns 400 instead of an unhandled exception; DNS-rebinding guard — requests with a non-loopback `Host` header get 403
+- REPL `/list` caps at 30 lines with a pointer to the web library browser
+
 ## [0.7.0] — 2026-11-01
 
 ### Added
