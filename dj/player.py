@@ -23,6 +23,7 @@ class Player:
         self.current = None
         self.current_source = None  # path/URL of current track (for beatmatch)
         self.on_track_start = on_track_start
+        self._pre_duck = 100
         self._lock = threading.RLock()
         threading.Thread(target=self._advance_loop, daemon=True).start()
 
@@ -123,10 +124,10 @@ class Player:
         Player._unlink(sock)
 
     # --- public API --------------------------------------------------------
-    def _transition_speed(self, new_source):
+    def _transition_speed(self, new_source, bm_available):
         """Speed for an incoming local file to match the outgoing track's tempo.
         YouTube/uncached/absent-analysis cases return 1.0 (plain crossfade)."""
-        if not beatmatch.available():
+        if not bm_available:
             return 1.0
         old_src = self.current_source
         if not (old_src and os.path.isfile(old_src) and os.path.isfile(new_source)):
@@ -136,8 +137,9 @@ class Player:
 
     def play_now(self, source, title=""):
         """Start source immediately (with crossfade if something is playing)."""
+        bm_available = beatmatch.available()  # probe outside the lock (cold venv: slow)
         with self._lock:
-            speed = self._transition_speed(source)
+            speed = self._transition_speed(source, bm_available)
             old_proc, old_sock = self.proc, self.sock_path
             self.proc, self.sock_path = self._spawn(source, speed=speed)
             self.current, self.current_source = title or source, source
@@ -190,15 +192,18 @@ class Player:
                                        max(0.0, float(pos))])
 
     def status(self):
-        """Rich state for UIs: adds volume/position/duration/bpm to the basics."""
+        """Rich state for UIs: adds volume/position/duration/bpm/paused to the basics."""
         r = self._ipc_query(self.sock_path, ["get_property", "time-pos"])
         pos = r.get("data") if r and r.get("error") == "success" else None
         r = self._ipc_query(self.sock_path, ["get_property", "duration"])
         dur = r.get("data") if r and r.get("error") == "success" else None
+        r = self._ipc_query(self.sock_path, ["get_property", "pause"])
+        paused = bool(r.get("data")) if r and r.get("error") == "success" else False
         bpm = beatmatch.cached_bpm(self.current_source) \
             if self.current_source and os.path.isfile(self.current_source) else None
         return {"current": self.current,
                 "playing": self._playing(),
+                "paused": paused,
                 "queue": [t for _, t in self.queue],
                 "volume": self.volume(),
                 "pos": pos,
@@ -206,9 +211,13 @@ class Player:
                 "bpm": round(bpm, 1) if bpm else None}
 
     def duck(self, on):
-        """Duck music volume to 25% (on=True) / back to 100% — used while the
-        DJ voice speaks over the track."""
-        self._ipc(self.sock_path, ["set_property", "volume", 25 if on else 100])
+        """Duck music volume to 25% (on=True) / back to the pre-duck level —
+        used while the DJ voice speaks over the track."""
+        if on:
+            self._pre_duck = self.volume() or 100
+            self._ipc(self.sock_path, ["set_property", "volume", 25])
+        else:
+            self._ipc(self.sock_path, ["set_property", "volume", self._pre_duck])
 
     def _playing(self):
         return self.proc is not None and self.proc.poll() is None

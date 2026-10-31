@@ -3,12 +3,16 @@ python3-gi with AppIndicator3 (Ubuntu GNOME ships the shell side via
 ubuntu-appindicators). Silent no-op when unavailable."""
 import os
 
-from . import glibloop, mpris, settings  # mpris shares the gi + session-bus base
+from . import glibloop, mpris, settings, tts  # mpris shares the gi + session-bus base
 
 
 def _indicator_module():
-    """Return the AppIndicator module — classic or Ayatana fork (same API)."""
-    import gi
+    """Return the AppIndicator module — classic or Ayatana fork (same API).
+    None when python3-gi is absent (Windows, headless, CI)."""
+    try:
+        import gi
+    except (ImportError, ModuleNotFoundError):
+        return None
     for name in ("AppIndicator3", "AyatanaAppIndicator3"):
         try:
             gi.require_version(name, "0.1")
@@ -24,13 +28,18 @@ def available():
 
 
 def start(player, icon_path):
-    """Show a tray icon with play controls; no-op if unsupported."""
+    """Show a tray icon with play controls; no-op if disabled or unsupported."""
+    if not settings.tray():
+        return None
     AppIndicator3 = _indicator_module()
     if AppIndicator3 is None:
         return None
-    import gi
-    gi.require_version("Gtk", "3.0")
-    from gi.repository import Gtk
+    try:
+        import gi
+        gi.require_version("Gtk", "3.0")
+        from gi.repository import Gtk
+    except (ImportError, ModuleNotFoundError, ValueError):
+        return None
 
     menu = Gtk.Menu()
 
@@ -48,7 +57,7 @@ def start(player, icon_path):
     item("⏸ Play/Pause", player.pause)
     item("⏹ Stop", player.stop)
     menu.append(Gtk.SeparatorMenuItem())
-    item("✕ Quit DJ-K", lambda: (player.stop(), os._exit(0)))
+    item("✕ Quit DJ-K", lambda: (tts.stop_all(), player.stop(), os._exit(0)))
     menu.show_all()
 
     ind = AppIndicator3.Indicator.new(

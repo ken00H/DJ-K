@@ -4,7 +4,6 @@ Pick explicitly with DJ_PROVIDER=llamacpp|ollama|openai (or the settings UI),
 or leave unset for auto. URLs/models/timeout resolve from settings at startup.
 """
 import json
-import os
 import socket
 import urllib.request
 from urllib.parse import urlparse
@@ -12,7 +11,7 @@ from urllib.parse import urlparse
 from . import settings
 
 LLAMACPP_URL = settings.resolve("llamacpp_url")
-LLAMACPP_MODEL = os.environ.get("DJ_LLAMACPP_MODEL", "local")  # llama-server mostly ignores it
+LLAMACPP_MODEL = settings.resolve("llamacpp_model")  # llama-server mostly ignores it
 OLLAMA_URL = settings.resolve("ollama_url")
 OLLAMA_MODEL = settings.resolve("ollama_model")
 OPENAI_BASE = "https://api.openai.com/v1"  # fixed host, never env-controlled

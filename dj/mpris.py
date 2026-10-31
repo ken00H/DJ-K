@@ -51,9 +51,11 @@ _NODE_XML = """
 MICROSECONDS = 1_000_000
 
 
-def playback_status(playing):
+def playback_status(playing, paused=False):
     """Pure mapping for tests: Player state → MPRIS PlaybackStatus string."""
-    return "Playing" if playing else "Stopped"
+    if not playing:
+        return "Stopped"
+    return "Paused" if paused else "Playing"
 
 
 def metadata_for(title):
@@ -143,7 +145,7 @@ def start(player):
     def poll_player():
         st = player.status()
         changes = []
-        new_status = playback_status(st["playing"])
+        new_status = playback_status(st["playing"], st.get("paused"))
         if new_status != state["status"]:
             state["status"] = new_status
             changes.append("PlaybackStatus")

@@ -108,12 +108,14 @@ def main():
             msg = input(f"{BOLD}you ▸ {RESET}").strip()
         except (EOFError, KeyboardInterrupt):
             print("\nbye. keep it spinning.")
+            tts.stop_all()
             player.stop()
             break
         if not msg:
             continue
 
         if msg in ("/quit", "/exit", "q"):
+            tts.stop_all()
             player.stop()
             break
         if msg == "/skip":
@@ -159,9 +161,15 @@ def main():
         except Exception as e:
             print(f"{DIM}brain hiccup: {e}{RESET}")
             continue
+        except KeyboardInterrupt:  # Ctrl+C during a blocking LLM call
+            print("\nbye. keep it spinning.")
+            tts.stop_all()
+            player.stop()
+            break
 
         history.append({"role": "user", "content": msg})
         history.append({"role": "assistant", "content": brain["reply"]})
+        del history[:-6]  # same window djbrain.think uses
         print(f"{MAGENTA}DJ ▸{RESET} {brain['reply']}")
 
         action, tracks = brain["action"], brain["tracks"]
@@ -182,6 +190,11 @@ def main():
                 dj_say(player, brain["reply"])
         except ValueError as e:
             print(f"{DIM}skipped a bad source: {e}{RESET}")
+        except KeyboardInterrupt:  # Ctrl+C during playback actions
+            print("\nbye. keep it spinning.")
+            tts.stop_all()
+            player.stop()
+            break
 
 
 if __name__ == "__main__":

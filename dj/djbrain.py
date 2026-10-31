@@ -48,6 +48,7 @@ def _parse(raw):
     except json.JSONDecodeError:
         return {"reply": raw.strip(), "action": "chat", "tracks": []}
     d.setdefault("reply", "")
+    d["reply"] = "" if d["reply"] is None else str(d["reply"])
     d["action"] = d.get("action", "chat") if d.get("action") in (
         "play", "queue", "playlist", "stop", "chat", "search", "generate") else "chat"
     d["tracks"] = [str(t) for t in (d.get("tracks") or [])][:20]

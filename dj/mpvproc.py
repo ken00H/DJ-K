@@ -29,8 +29,11 @@ def launch(sock, start_volume, source, speed=1.0):
     if speed != 1.0:  # beatmatch: pitch-corrected tempo match (mpv default)
         argv.append(f"--speed={speed:.4f}")
     argv += ["--", validate_source(source)]
-    return subprocess.Popen(argv, shell=False,
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        return subprocess.Popen(argv, shell=False,
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except FileNotFoundError:
+        raise ValueError("mpv not found on PATH — install mpv")
 
 
 def resolve_youtube(query):

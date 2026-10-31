@@ -332,5 +332,95 @@ class SourceToggles(unittest.TestCase):
         self.assertIn("Local library:", captured["last"])
 
 
+class AuditFixes(unittest.TestCase):
+    """Second audit round: crash guards, CSRF, pause state, env coercion."""
+
+    def test_mpv_missing_raises_valueerror(self):
+        # FileNotFoundError from Popen must surface as ValueError at the choke
+        # point, so every existing ValueError handler keeps working.
+        def fake_popen(*a, **kw):
+            raise FileNotFoundError("mpv")
+
+        with tempfile.NamedTemporaryFile(suffix=".mp3") as f, \
+             mock.patch.object(mpvproc.subprocess, "Popen", fake_popen):
+            self.assertRaises(ValueError, mpvproc.launch, "/tmp/s.sock", 100, f.name)
+
+    def test_tray_noop_when_disabled_or_no_gi(self):
+        from dj import tray
+        with mock.patch.object(tray, "_indicator_module", lambda: None):
+            self.assertIsNone(tray.start(None, "x"))  # no gi -> no crash
+        with mock.patch.object(tray.settings, "tray", lambda: False):
+            self.assertIsNone(tray.start(None, "x"))  # toggle honored
+
+    def test_djbrain_coerces_null_reply(self):
+        d = djbrain._parse('{"reply": null, "action": "chat", "tracks": []}')
+        self.assertEqual(d["reply"], "")
+
+    def test_settings_bad_env_int_falls_back(self):
+        from dj import settings
+        os.environ["DJ_LLM_TIMEOUT"] = "abc"
+        try:
+            self.assertEqual(settings.resolve("llm_timeout"), 300)
+        finally:
+            del os.environ["DJ_LLM_TIMEOUT"]
+
+    def test_settings_new_schema_keys(self):
+        from dj import settings
+        self.assertEqual(settings.resolve("llamacpp_model"), "local")
+        self.assertEqual(settings.resolve("web_port"), 8090)
+        self.assertEqual(settings.resolve("gen_python"), "")
+        self.assertIn("web_port", settings.RESTART_KEYS)
+
+    def test_settings_atomic_update_leaves_no_tmp(self):
+        from dj import settings
+        tmp = Path(tempfile.mkdtemp())
+        with mock.patch.object(settings, "FILE", tmp / "settings.json"):
+            settings.update({"crossfade": False})
+            self.assertFalse(settings.crossfade())
+            self.assertEqual(list(tmp.iterdir()), [tmp / "settings.json"])
+
+    def test_status_reports_paused(self):
+        from dj.player import Player
+        p = Player.__new__(Player)  # skip __init__ (it starts the advance thread)
+        p.queue, p.proc, p.sock_path = [], None, None
+        p.current = p.current_source = None
+        p._pre_duck = 100
+
+        def fake_query(sock, cmd, timeout=1.0):
+            if cmd[1] == "pause":
+                return {"error": "success", "data": True}
+            return None
+
+        with mock.patch.object(Player, "_ipc_query",
+                               staticmethod(fake_query)):
+            self.assertTrue(p.status()["paused"])
+
+        def false_query(sock, cmd, timeout=1.0):
+            if cmd[1] == "pause":
+                return {"error": "success", "data": False}
+            return None
+
+        with mock.patch.object(Player, "_ipc_query",
+                               staticmethod(false_query)):
+            self.assertFalse(p.status()["paused"])
+
+    def test_cross_site_guard(self):
+        from dj.web import cross_site
+        self.assertFalse(cross_site({}))  # curl / header-less clients pass
+        self.assertFalse(cross_site({"Origin": "http://127.0.0.1:8090"}))
+        self.assertFalse(cross_site({"Origin": "http://localhost:8090"}))
+        self.assertFalse(cross_site({"Sec-Fetch-Site": "same-origin"}))
+        self.assertTrue(cross_site({"Origin": "https://evil.com"}))
+        self.assertTrue(cross_site({"Origin": "http://evil.com:8090"}))
+        self.assertTrue(cross_site({"Origin": "null"}))
+        self.assertTrue(cross_site({"Sec-Fetch-Site": "cross-site"}))
+
+    def test_mpris_paused_mapping(self):
+        from dj import mpris
+        self.assertEqual(mpris.playback_status(True, True), "Paused")
+        self.assertEqual(mpris.playback_status(True, False), "Playing")
+        self.assertEqual(mpris.playback_status(False, True), "Stopped")
+
+
 if __name__ == "__main__":
     unittest.main()

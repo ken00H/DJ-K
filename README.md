@@ -85,6 +85,7 @@ Then just talk. Commands:
 | `/queue` | show queue |
 | `/list` | list local library |
 | `/rescan` | rescan music folder |
+| `/settings` | show current settings |
 | `/quit` | exit |
 
 Anything else goes to the DJ brain.
@@ -111,15 +112,22 @@ Everything is optional and silently off where unsupported (Windows, CI, headless
 | `DJ_MUSIC_DIR` | `~/Music` | music folder to scan |
 | `DJ_PROVIDER` | `auto` | force `llamacpp` / `ollama` / `openai` |
 | `DJ_LLAMACPP_URL` | `http://127.0.0.1:8080` | llama.cpp server |
+| `DJ_LLAMACPP_MODEL` | `local` | model name for llama-server |
+| `OLLAMA_URL` | `http://localhost:11434` | Ollama server |
 | `DJ_OLLAMA_MODEL` | `gemma4:e2b-it-qat` | Ollama model |
 | `DJ_OPENAI_MODEL` | `gpt-4o-mini` | OpenAI model |
 | `DJ_LLM_TIMEOUT` | `300` | LLM request timeout (seconds) |
+| `DJ_SOURCE_LOCAL` | `1` | `0` disables the local library source |
+| `DJ_SOURCE_YOUTUBE` | `1` | `0` disables the YouTube fallback |
 | `DJ_CROSSFADE` | `1` | `0` disables crossfade |
 | `DJ_TTS` | `1` | `0` disables the DJ voice |
 | `DJ_TTS_VOICE` | `~/.config/djjamal/voices/en_US-lessac-medium.onnx` | piper voice model |
 | `DJ_MUSICGEN` | `1` | `0` disables AI generation |
 | `DJ_BEATMATCH` | `1` | `0` disables tempo-matched transitions |
 | `DJ_GEN_PYTHON` | `~/.config/djjamal/gen-env/bin/python` | python of the generation venv |
+| `DJ_MPRIS` | `1` | `0` disables MPRIS media controls (restart) |
+| `DJ_TRAY` | `1` | `0` disables the tray icon (restart) |
+| `DJ_WEB_PORT` | `8090` | web UI port (restart) |
 
 **DJ voice (optional):** `pip install --user --break-system-packages piper-tts`, then
 download a voice, e.g.
@@ -180,9 +188,13 @@ you ─► main.py (REPL) ─► djbrain.py ─► llm.py (llama.cpp → Ollama 
 | `library.py` | scan + cache + fuzzy search of music folder |
 | `player.py` | queue, mpv IPC control, crossfade, volume/seek/status |
 | `mpvproc.py` | mpv launch (validated sources) + YouTube URL resolution |
+| `settings.py` | settings store: env > file > default, behind every toggle |
 | `tts.py` | optional DJ voice (piper subprocess) |
 | `musicgen.py` | optional AI track generation (MusicGen venv subprocess) |
 | `beatmatch.py` | optional BPM detection + tempo matching (librosa venv subprocess) |
+| `mpris.py` | optional MPRIS media controls (system python3-gi) |
+| `tray.py` | optional tray icon (system python3-gi) |
+| `glibloop.py` | shared GLib main loop for the desktop integrations |
 | `project-ledger.md` | project status ledger |
 
 ## Roadmap ideas

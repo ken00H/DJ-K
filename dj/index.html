@@ -5,104 +5,138 @@
 <title>DJ-K</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Cdefs%3E%3ClinearGradient id='t' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%238b3fd4'/%3E%3Cstop offset='1' stop-color='%231fb6e0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='128' height='128' rx='28' fill='url(%23t)'/%3E%3Cpath d='M30 80 V60 a34 34 0 0 1 68 0 V80' fill='none' stroke='%23fff' stroke-width='12' stroke-linecap='round'/%3E%3Crect x='18' y='72' width='24' height='34' rx='11' fill='%23fff'/%3E%3Crect x='86' y='72' width='24' height='34' rx='11' fill='%23fff'/%3E%3Crect x='55' y='100' width='5' height='16' rx='2.5' fill='%230e0e12' fill-opacity='.85'/%3E%3Crect x='63.5' y='90' width='5' height='26' rx='2.5' fill='%230e0e12' fill-opacity='.85'/%3E%3Crect x='72' y='100' width='5' height='16' rx='2.5' fill='%230e0e12' fill-opacity='.85'/%3E%3C/svg%3E">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="DJ-K — a personal AI DJ: chat, queue, crossfade and beatmatched playback from your local library.">
 <style>
-  :root { --bg:#0e0e12; --panel:#17171d; --accent:#c26bff; --accent2:#38d0ff; --dim:#8a8a95; --line:#26262e; }
+/* Hallmark · v2.0.0 · redesign: polish · theme: project (DJ-K dark) · built: the project · copy: verbatim */
+/* critique: tokenised the palette, focus rings, SVG glyphs for transport, reduced-motion, label case, capped measure */
+/* waive: 2a (purple-to-blue gradient lives inside the DJ-K logo mark only — brand asset assets/djk.svg, kept at every depth) */
+  :root { --bg:#0e0e12; --panel:#17171d; --accent:#c26bff; --accent2:#38d0ff; --dim:#8a8a95;
+          --line:#26262e; --text:#eee; --text-soft:#cfcfda; --ink:#111; --knob:#f4eefe;
+          --danger:#ff6b6b; --danger-bg:#3d2226; --btn:#26262e; --btn-hover:#33333d;
+          --chip:#1d1d25; --you:#2b2240; --scrim:rgba(0,0,0,.6);
+          --font: system-ui, sans-serif; }
   * { box-sizing:border-box; margin:0; }
-  body { background:var(--bg); color:#eee; font:16px/1.5 system-ui,sans-serif;
-         display:flex; flex-direction:column; height:100vh; }
+  html, body { overflow-x:clip; }
+  body { background:var(--bg); color:var(--text); font:16px/1.5 var(--font);
+         display:flex; flex-direction:column; height:100vh; height:100dvh; }
+  h1, h2, h3 { overflow-wrap:break-word; min-width:0; text-wrap:balance; }
+  button, input, select { font-family:var(--font); }
+  :focus-visible { outline:2px solid var(--accent2); outline-offset:2px; }
+  .switch input:focus-visible + span { outline:2px solid var(--accent2); outline-offset:2px; }
+  button:active:not(:disabled) { transform:translateY(1px); }
+  button:disabled { background:var(--bg); color:var(--dim); border-color:var(--line);
+                    cursor:default; }
+  input:disabled { background:var(--bg); color:var(--dim); cursor:default; }
   header { padding:10px 20px; background:var(--panel); display:flex;
            align-items:center; gap:12px; border-bottom:1px solid var(--line); }
   header h1 { font-size:1.1rem; }
   header .eq { display:flex; gap:3px; align-items:flex-end; height:18px; }
-  header .eq span { width:4px; background:var(--accent); animation:bounce 1s infinite ease-in-out; }
+  header .eq span { width:4px; height:18px; background:var(--accent); transform-origin:bottom;
+                    animation:bounce 1s infinite ease-in-out; }
   header .eq span:nth-child(2){ animation-delay:.2s } header .eq span:nth-child(3){ animation-delay:.4s }
-  @keyframes bounce { 0%,100%{height:4px} 50%{height:18px} }
+  @keyframes bounce { 0%,100%{transform:scaleY(.22)} 50%{transform:scaleY(1)} }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation:none !important; transition:none !important; } }
   #controls { margin-left:auto; display:flex; gap:8px; align-items:center; }
   #emblem { width:26px; height:26px; }
+  button { background:var(--btn); color:var(--text); border:0; border-radius:8px;
+           padding:8px 14px; cursor:pointer; font-size:.95rem;
+           display:inline-flex; align-items:center; gap:5px; }
+  button:hover { background:var(--btn-hover); }
+  #controls button[data-cmd] { background:transparent; border:1px solid var(--line); }
+  .ic { width:14px; height:14px; fill:currentColor; flex:none; }
   #gear { padding:6px; line-height:0; }
-  #gear svg { width:20px; height:20px; fill:#eee; }
+  #gear svg { width:20px; height:20px; fill:var(--text); }
   #gear:hover svg { fill:var(--accent); }
-  #power { color:#ff6b6b; padding:8px 12px; }
-  #power:hover { background:#3d2226; }
+  #power { color:var(--danger); padding:8px 12px; }
+  #power:hover { background:var(--danger-bg); }
   #dead { display:none; flex:1; align-items:center; justify-content:center;
           color:var(--dim); font-size:1.05rem; flex-direction:column; gap:8px; }
-  button { background:#26262e; color:#eee; border:0; border-radius:8px;
-           padding:8px 14px; cursor:pointer; font-size:.95rem; }
-  button:hover { background:#33333d; }
   /* settings modal */
-  #overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none;
+  #overlay { position:fixed; inset:0; background:var(--scrim); display:none;
              align-items:center; justify-content:center; z-index:10; }
   #overlay.open { display:flex; }
   #settings { background:var(--panel); border:1px solid var(--line); border-radius:14px;
               width:min(520px, 92vw); max-height:88vh; display:flex; flex-direction:column;
               overflow:hidden; }
   #settings h2 { font-size:1rem; margin-bottom:2px; }
-  #settings h3 { font-size:.75rem; color:var(--dim); text-transform:uppercase;
-                 letter-spacing:.08em; margin:16px 0 8px; }
+  #settings h3 { font-size:.78rem; color:var(--dim); margin:16px 0 8px; }
   #settings .row { display:flex; align-items:center; justify-content:space-between;
                    gap:12px; margin:8px 0; }
-  #settings .row label { font-size:.9rem; color:#cfcfda; }
+  #settings .row > label:first-child { font-size:.9rem; color:var(--text-soft); }
   #settings input[type=text], #settings input[type=password], #settings select {
-    background:var(--bg); border:1px solid var(--line); color:#eee; border-radius:8px;
-    padding:7px 10px; font-size:.88rem; width:60%; outline:none; }
-  #settings input:focus, #settings select:focus { border-color:var(--accent); }
+    background:var(--bg); border:1px solid var(--line); color:var(--text); border-radius:8px;
+    padding:7px 10px; font-size:1rem; width:60%; }
   .switch { position:relative; width:44px; height:24px; flex:none; }
   .switch input { opacity:0; width:0; height:0; }
-  .switch span { position:absolute; inset:0; background:#33333d; border-radius:12px;
-                 transition:.15s; cursor:pointer; }
+  .switch span { position:absolute; inset:0; background:var(--btn-hover); border-radius:12px;
+                 transition:background-color .15s; cursor:pointer; }
   .switch span::before { content:''; position:absolute; width:18px; height:18px;
-                 border-radius:50%; background:#8a8a95; top:3px; left:3px; transition:.15s; }
+                 border-radius:50%; background:var(--dim); top:3px; left:3px;
+                 transition:transform .15s, background-color .15s; }
   .switch input:checked + span { background:var(--accent); }
-  .switch input:checked + span::before { transform:translateX(20px); background:#fff; }
+  .switch input:checked + span::before { transform:translateX(20px); background:var(--knob); }
   #settings .note { color:var(--dim); font-size:.75rem; margin-top:4px; }
   #settings .actions { display:flex; gap:10px; align-items:center;
               padding:12px 22px; border-top:1px solid var(--line); flex:none; }
   #sbody { overflow-y:auto; padding:18px 22px; }
-  #savemsg { font-size:.8rem; color:var(--accent2); flex:1; }
+  #savemsg { font-size:.8rem; color:var(--accent2); flex:1; overflow-wrap:anywhere; }
+  .primary { background:var(--accent); color:var(--ink); font-weight:600; }
+  .primary:hover { background:var(--accent); filter:brightness(1.1); }
+  .mini { font-size:.75rem; padding:4px 10px; color:var(--text-soft); }
   #vol { width:110px; accent-color:var(--accent); }
   #now { padding:8px 20px; background:var(--panel); border-bottom:1px solid var(--line);
          display:flex; align-items:center; gap:12px; min-height:42px; }
   #now .title { color:var(--accent2); font-size:.95rem; flex:1; overflow:hidden;
-                text-overflow:ellipsis; white-space:nowrap; }
+                text-overflow:ellipsis; white-space:nowrap; min-width:0; }
   #now .bpm { color:var(--accent); font-size:.8rem; border:1px solid var(--accent);
-              border-radius:6px; padding:1px 8px; }
-  #seek { flex:4; height:6px; appearance:none; background:#26262e; border-radius:3px; cursor:pointer; }
+              border-radius:6px; padding:1px 8px; flex:none; }
+  #seek { flex:4; height:6px; appearance:none; background:var(--btn); border-radius:3px; cursor:pointer; }
   #seek::-webkit-slider-thumb { appearance:none; width:14px; height:14px; border-radius:50%;
                                 background:var(--accent2); }
   #time { color:var(--dim); font-size:.8rem; min-width:90px; text-align:right; }
   #main { flex:1; display:flex; min-height:0; }
   #chat { flex:1; overflow-y:auto; padding:20px; display:flex;
           flex-direction:column; gap:10px; }
-  .msg { max-width:75%; padding:10px 14px; border-radius:14px; white-space:pre-wrap; }
-  .you { align-self:flex-end; background:#2b2240; border-bottom-right-radius:4px; }
+  .nojs { color:var(--dim); padding:8px 0; }
+  .msg { max-width:min(75%, 56ch); padding:10px 14px; border-radius:14px;
+         white-space:pre-wrap; overflow-wrap:anywhere; }
+  .you { align-self:flex-end; background:var(--you); border-bottom-right-radius:4px; }
   .dj  { align-self:flex-start; background:var(--panel); border-bottom-left-radius:4px; }
   .dj b{ color:var(--accent); }
+  .sys { align-self:center; background:none; color:var(--dim); font-size:.8rem; padding:4px 10px; }
   .thinking { color:var(--dim); font-style:italic; }
   #side { width:300px; border-left:1px solid var(--line); display:flex;
           flex-direction:column; min-height:0; background:var(--panel); }
-  #side h2 { font-size:.8rem; color:var(--dim); text-transform:uppercase;
-             letter-spacing:.08em; padding:12px 16px 6px; }
+  #side h2 { font-size:.85rem; color:var(--dim); padding:12px 16px 6px; }
+  .sidehead { display:flex; align-items:center; justify-content:space-between;
+              padding:8px 10px 4px 16px; }
+  .sidehead h2 { padding:0; }
   #queue { max-height:32%; overflow-y:auto; padding:0 8px 8px; }
-  #queue .q { padding:6px 8px; border-radius:6px; font-size:.88rem; color:#cfcfda;
+  #queue .q { padding:6px 8px; border-radius:6px; font-size:.88rem; color:var(--text-soft);
               overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  #queue .q:nth-child(odd) { background:#1d1d25; }
+  #queue .q:nth-child(odd) { background:var(--chip); }
   #libwrap { flex:1; display:flex; flex-direction:column; min-height:0; }
   #libsearch { margin:4px 12px 8px; background:var(--bg); border:1px solid var(--line);
-               color:#eee; border-radius:8px; padding:8px 12px; font-size:.9rem; outline:none; }
-  #libsearch:focus { border-color:var(--accent); }
+               color:var(--text); border-radius:8px; padding:8px 12px; font-size:1rem; }
   #lib { flex:1; overflow-y:auto; padding:0 8px 8px; }
   #lib .t { padding:6px 8px; border-radius:6px; font-size:.88rem; cursor:pointer;
             display:flex; gap:8px; align-items:center; }
-  #lib .t:hover { background:#26262e; }
+  #lib .t:hover { background:var(--btn); }
   #lib .t span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
-  #lib .t .go { visibility:hidden; color:var(--accent2); }
+  #lib .t span:first-child { min-width:0; }
+  #lib .t .go { visibility:hidden; color:var(--accent2); flex:none;
+                display:inline-flex; padding:6px 4px; }
   #lib .t:hover .go { visibility:visible; }
   form { display:flex; gap:10px; padding:14px 20px; background:var(--panel);
          border-top:1px solid var(--line); }
-  input[type=text] { flex:1; background:var(--bg); border:1px solid var(--line); color:#eee;
-        border-radius:10px; padding:12px 16px; font-size:1rem; outline:none; }
-  form button { background:var(--accent); color:#111; font-weight:600; }
-  @media (max-width:760px){ #side { display:none; } #seek { flex:2; } }
+  input[type=text] { flex:1; background:var(--bg); border:1px solid var(--line); color:var(--text);
+        border-radius:10px; padding:12px 16px; font-size:1rem; min-width:0; }
+  @media (max-width:760px){
+    #main { flex-direction:column; }
+    #side { width:auto; border-left:0; border-top:1px solid var(--line); max-height:44%; }
+    #seek { flex:2; }
+  }
 </style>
 </head>
 <body>
@@ -111,69 +145,69 @@
   <svg id="emblem" viewBox="0 0 128 128" aria-hidden="true"><defs><linearGradient id="t2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8b3fd4"/><stop offset="1" stop-color="#1fb6e0"/></linearGradient></defs><rect width="128" height="128" rx="28" fill="url(#t2)"/><path d="M30 80 V60 a34 34 0 0 1 68 0 V80" fill="none" stroke="#fff" stroke-width="12" stroke-linecap="round"/><rect x="18" y="72" width="24" height="34" rx="11" fill="#fff"/><rect x="86" y="72" width="24" height="34" rx="11" fill="#fff"/><rect x="55" y="100" width="5" height="16" rx="2.5" fill="#0e0e12" fill-opacity=".85"/><rect x="63.5" y="90" width="5" height="26" rx="2.5" fill="#0e0e12" fill-opacity=".85"/><rect x="72" y="100" width="5" height="16" rx="2.5" fill="#0e0e12" fill-opacity=".85"/></svg>
   <h1>DJ-K</h1>
   <div id="controls">
-    <input type="range" id="vol" min="0" max="100" value="100" title="volume">
-    <button data-cmd="skip">⏭ skip</button>
-    <button data-cmd="pause">⏸ pause</button>
-    <button data-cmd="stop">⏹ stop</button>
-    <button id="power" title="shut down DJ-K">⏻</button>
-    <button id="gear" title="settings"><svg viewBox="0 0 24 24"><path d="M19.14 12.94a7.5 7.5 0 0 0 .06-.94 7.5 7.5 0 0 0-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.3 7.3 0 0 0-1.62-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.58.24-1.12.55-1.62.94l-2.39-.96a.5.5 0 0 0-.6.22L2.67 8.84a.5.5 0 0 0 .12.64l2.03 1.58a7.5 7.5 0 0 0 0 1.88l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.31.6.22l2.39-.96c.5.39 1.04.7 1.62.94l.36 2.54c.04.24.25.42.5.42h3.84c.25 0 .46-.18.5-.42l.36-2.54a7.3 7.3 0 0 0 1.62-.94l2.39.96c.21.09.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/></svg></button>
+    <input type="range" id="vol" min="0" max="100" value="100" title="volume" aria-label="volume">
+    <button data-cmd="skip" title="skip"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5l10 7-10 7V5zm11-1h2.4v16H17V4z"/></svg>skip</button>
+    <button data-cmd="pause" id="btnpause" title="pause or resume"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.4v14H7V5zm6.6 0H17v14h-3.4V5z"/></svg>pause</button>
+    <button data-cmd="stop" title="stop"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10H7z"/></svg>stop</button>
+    <button id="power" title="shut down DJ-K" aria-label="shut down DJ-K"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3h-2v10h2V3zm4.8 2.2a8 8 0 1 0-11.6 0l1.4 1.4a6 6 0 1 1 8.8 0l1.4-1.4z"/></svg></button>
+    <button id="gear" title="settings" aria-label="settings"><svg viewBox="0 0 24 24"><path d="M19.14 12.94a7.5 7.5 0 0 0 .06-.94 7.5 7.5 0 0 0-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.3 7.3 0 0 0-1.62-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.58.24-1.12.55-1.62.94l-2.39-.96a.5.5 0 0 0-.6.22L2.67 8.84a.5.5 0 0 0 .12.64l2.03 1.58a7.5 7.5 0 0 0 0 1.88l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.31.6.22l2.39-.96c.5.39 1.04.7 1.62.94l.36 2.54c.04.24.25.42.5.42h3.84c.25 0 .46-.18.5-.42l.36-2.54a7.3 7.3 0 0 0 1.62-.94l2.39.96c.21.09.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/></svg></button>
   </div>
 </header>
 <div id="now">
   <span class="bpm" id="bpm" hidden></span>
   <span class="title" id="title">♪ —</span>
-  <input type="range" id="seek" min="0" max="100" value="0" title="seek">
+  <input type="range" id="seek" min="0" max="0" value="0" title="seek" aria-label="seek">
   <span id="time">0:00 / 0:00</span>
 </div>
 <div id="main">
-  <div id="chat"></div>
+  <div id="chat"><noscript><p class="nojs">DJ-K needs JavaScript for chat and playback controls.</p></noscript></div>
   <div id="dead"></div>
   <div id="side">
     <h2>Queue</h2>
     <div id="queue"></div>
     <div id="libwrap">
-      <h2>Library</h2>
-      <input type="text" id="libsearch" placeholder="filter tracks…">
+      <div class="sidehead"><h2>Library</h2><button id="rescan" class="mini" title="rescan music folder">rescan</button></div>
+      <input type="text" id="libsearch" placeholder="filter tracks…" aria-label="filter tracks">
       <div id="lib"></div>
     </div>
   </div>
 </div>
 <div id="overlay">
-  <div id="settings">
+  <div id="settings" role="dialog" aria-modal="true" aria-label="Settings">
     <div id="sbody">
     <h2>Settings</h2>
     <h3>Music sources <small>(applies instantly)</small></h3>
-    <div class="row"><label>Local library</label><label class="switch"><input type="checkbox" id="s_source_local"><span></span></label></div>
-    <div class="row"><label>YouTube</label><label class="switch"><input type="checkbox" id="s_source_youtube"><span></span></label></div>
-    <div class="row"><label>AI track generation</label><label class="switch"><input type="checkbox" id="s_musicgen"><span></span></label></div>
+    <div class="row"><label for="s_source_local">Local library</label><label class="switch"><input type="checkbox" id="s_source_local"><span></span></label></div>
+    <div class="row"><label for="s_source_youtube">YouTube</label><label class="switch"><input type="checkbox" id="s_source_youtube"><span></span></label></div>
+    <div class="row"><label for="s_musicgen">AI track generation</label><label class="switch"><input type="checkbox" id="s_musicgen"><span></span></label></div>
     <h3>Playback <small>(applies instantly)</small></h3>
-    <div class="row"><label>Crossfade</label><label class="switch"><input type="checkbox" id="s_crossfade"><span></span></label></div>
-    <div class="row"><label>DJ voice</label><label class="switch"><input type="checkbox" id="s_tts"><span></span></label></div>
-    <div class="row"><label>Beatmatch</label><label class="switch"><input type="checkbox" id="s_beatmatch"><span></span></label></div>
+    <div class="row"><label for="s_crossfade">Crossfade</label><label class="switch"><input type="checkbox" id="s_crossfade"><span></span></label></div>
+    <div class="row"><label for="s_tts">DJ voice</label><label class="switch"><input type="checkbox" id="s_tts"><span></span></label></div>
+    <div class="row"><label for="s_beatmatch">Beatmatch</label><label class="switch"><input type="checkbox" id="s_beatmatch"><span></span></label></div>
     <h3>Desktop <small>(applies on restart)</small></h3>
-    <div class="row"><label>Media controls (MPRIS)</label><label class="switch"><input type="checkbox" id="s_mpris"><span></span></label></div>
-    <div class="row"><label>Tray icon</label><label class="switch"><input type="checkbox" id="s_tray"><span></span></label></div>
+    <div class="row"><label for="s_mpris">Media controls (MPRIS)</label><label class="switch"><input type="checkbox" id="s_mpris"><span></span></label></div>
+    <div class="row"><label for="s_tray">Tray icon</label><label class="switch"><input type="checkbox" id="s_tray"><span></span></label></div>
     <h3>AI backend <small>(applies on restart)</small></h3>
-    <div class="row"><label>Provider</label><select id="s_provider"><option>auto</option><option>llamacpp</option><option>ollama</option><option>openai</option></select></div>
-    <div class="row"><label>llama.cpp URL</label><input type="text" id="s_llamacpp_url"></div>
-    <div class="row"><label>Ollama URL</label><input type="text" id="s_ollama_url"></div>
-    <div class="row"><label>Ollama model</label><input type="text" id="s_ollama_model"></div>
-    <div class="row"><label>OpenAI key</label><input type="password" id="s_openai_api_key" placeholder="sk-…"></div>
-    <div class="row"><label>OpenAI model</label><input type="text" id="s_openai_model"></div>
-    <div class="row"><label>LLM timeout (s)</label><input type="text" id="s_llm_timeout"></div>
+    <div class="row"><label for="s_provider">Provider</label><select id="s_provider"><option>auto</option><option>llamacpp</option><option>ollama</option><option>openai</option></select></div>
+    <div class="row"><label for="s_llamacpp_url">llama.cpp URL</label><input type="text" id="s_llamacpp_url"></div>
+    <div class="row"><label for="s_ollama_url">Ollama URL</label><input type="text" id="s_ollama_url"></div>
+    <div class="row"><label for="s_ollama_model">Ollama model</label><input type="text" id="s_ollama_model"></div>
+    <div class="row"><label for="s_openai_api_key">OpenAI key</label><input type="password" id="s_openai_api_key" placeholder="sk-…"></div>
+    <div class="row"><label for="s_openai_model">OpenAI model</label><input type="text" id="s_openai_model"></div>
+    <div class="row"><label for="s_llm_timeout">LLM timeout (s)</label><input type="text" id="s_llm_timeout"></div>
     <h3>Advanced <small>(applies on restart)</small></h3>
-    <div class="row"><label>Music folder</label><input type="text" id="s_music_dir"></div>
-    <div class="row"><label>TTS voice</label><input type="text" id="s_tts_voice"></div>
+    <div class="row"><label for="s_music_dir">Music folder</label><input type="text" id="s_music_dir"></div>
+    <div class="row"><label for="s_tts_voice">TTS voice</label><input type="text" id="s_tts_voice"></div>
     <div class="note">Settings live in <code>~/.config/djjamal/settings.json</code> (0600 — it holds your API key). Env vars override.</div>
     </div>
     <div class="actions">
-      <button id="s_save" style="background:var(--accent);color:#111;font-weight:600">Save</button>
+      <button id="s_save" class="primary">Save</button>
       <button id="s_close">Close</button>
       <span id="savemsg"></span>
     </div>
   </div>
 </div>
-<form id="f"><input type="text" id="q" placeholder="talk to the DJ… e.g. gimme a gym playlist" autocomplete="off"><button>Send</button></form>
+<form id="f"><input type="text" id="q" placeholder="talk to the DJ… e.g. gimme a gym playlist" autocomplete="off" aria-label="talk to the DJ"><button class="primary">Send</button></form>
 <script>
 const $ = id => document.getElementById(id);
 const chat = $('chat'), now = $('title'), bpmEl = $('bpm'), seek = $('seek'),
@@ -185,30 +219,44 @@ const post = (path, body) => fetch(path, { method:'POST',
 
 const add = (cls, html) => { const d = document.createElement('div');
   d.className = 'msg ' + cls; d.innerHTML = html; chat.appendChild(d);
+  while (chat.children.length > 200) chat.firstChild.remove();
   chat.scrollTop = chat.scrollHeight; return d; };
 
+const sys = t => { const d = add('sys', esc(t)); return d; };
+
+let busy = false;
 document.getElementById('f').onsubmit = async e => {
   e.preventDefault();
+  if (busy) return;
   const q = $('q');
   const text = q.value.trim(); if (!text) return;
   q.value = '';
   add('you', esc(text));
   const t = add('dj thinking','DJ is thinking…');
+  busy = true;
   try {
     const d = await (await post('/api/chat', {text})).json();
     t.className = 'msg dj';
-    t.innerHTML = '<b>DJ ▸</b> ' + esc(d.reply);
-  } catch { t.innerHTML = '<b>DJ ▸</b> connection lost'; }
+    t.innerHTML = '<b>DJ-K</b> ' + esc(d.reply);
+  } catch { t.innerHTML = '<b>DJ-K</b> connection lost'; }
+  busy = false;
 };
 
-document.querySelectorAll('#controls button').forEach(b =>
-  b.onclick = () => post('/api/cmd', {cmd: b.dataset.cmd}));
+const ICONS = {
+  pause: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.4v14H7V5zm6.6 0H17v14h-3.4V5z"/></svg>',
+  play:  '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5l12 7-12 7V5z"/></svg>',
+};
+document.querySelectorAll('#controls button[data-cmd]').forEach(b =>
+  b.onclick = () => post('/api/cmd', {cmd: b.dataset.cmd}).catch(() => {}));
 
-let lastVol = 100;
-volEl.onchange = () => { lastVol = volEl.value; post('/api/cmd', {cmd:'volume', value:+volEl.value}); };
+let lastVol = 100, volAt = 0;
+volEl.onchange = () => { lastVol = volEl.value; volAt = Date.now();
+  post('/api/cmd', {cmd:'volume', value:+volEl.value}).catch(() => {}); };
 let seeking = false;
-seek.onmousedown = () => seeking = true;
-seek.onchange = () => { post('/api/cmd', {cmd:'seek', value:+seek.value}); seeking = false; };
+seek.addEventListener('pointerdown', () => seeking = true);
+seek.onchange = () => { seeking = false;
+  if (+seek.max <= 0) return;  // no duration yet — nothing to seek in
+  post('/api/cmd', {cmd:'seek', value:+seek.value}).catch(() => {}); };
 
 // --- library ---
 let LIB = [];
@@ -218,23 +266,37 @@ const renderLib = filter => {
     .filter(t => f.every(w => t.name.toLowerCase().includes(w)))
     .slice(0, 300)
     .map((t,i) => `<div class="t" data-i="${LIB.indexOf(t)}">
-        <span>${esc(t.name)}</span><span class="go" data-mode="play" data-i="${LIB.indexOf(t)}">▶</span>
-        <span class="go" data-mode="queue" data-i="${LIB.indexOf(t)}">＋</span></div>`).join('');
+        <span>${esc(t.name)}</span>
+        <span class="go" data-mode="play" data-i="${LIB.indexOf(t)}" role="button" title="play now"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7V5z"/></svg></span>
+        <span class="go" data-mode="queue" data-i="${LIB.indexOf(t)}" role="button" title="add to queue"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5z"/></svg></span></div>`).join('');
 };
 libEl.onclick = e => {
   const go = e.target.closest('.go');
   const row = e.target.closest('.t');
   if (!row) return;
   const mode = go ? go.dataset.mode : 'queue';
-  post('/api/track', {path: LIB[+row.dataset.i].path, mode});
+  post('/api/track', {path: LIB[+row.dataset.i].path, mode})
+    .then(r => r.json())
+    .then(d => { if (d.error) sys(d.error); })
+    .catch(() => sys('track request failed — connection lost'));
 };
 $('libsearch').oninput = e => renderLib(e.target.value);
-fetch('/api/library').then(r => r.json()).then(t => { LIB = t; renderLib(''); });
+$('rescan').onclick = async () => {
+  try {
+    const r = await (await post('/api/rescan', {})).json();
+    if (r.error) return sys(r.error);
+    LIB = await (await fetch('/api/library')).json();
+    renderLib($('libsearch').value);
+    sys(`library rescanned — ${r.count} tracks`);
+  } catch { sys('rescan failed — connection lost'); }
+};
+fetch('/api/library').then(r => r.json()).then(t => { LIB = t; renderLib(''); })
+  .catch(() => {});
 fetch('/api/history').then(r => r.json()).then(h => {
   for (const m of h || [])
     add(m.role === 'user' ? 'you' : 'dj',
-        m.role === 'user' ? esc(m.content) : '<b>DJ ▸</b> ' + esc(m.content));
-});
+        m.role === 'user' ? esc(m.content) : '<b>DJ-K</b> ' + esc(m.content));
+}).catch(() => {});
 
 // --- settings ---
 const KEYS = ["crossfade","tts","beatmatch","musicgen","source_local","source_youtube",
@@ -244,38 +306,58 @@ const KEYS = ["crossfade","tts","beatmatch","musicgen","source_local","source_yo
 const applySourceVisibility = s =>
   document.getElementById('libwrap').style.display = s.source_local ? '' : 'none';
 const overlay = $('overlay');
+let lastFocus = null;
+const closeSettings = () => { overlay.classList.remove('open');
+  if (lastFocus) lastFocus.focus(); };
 const openSettings = async () => {
-  const s = await (await fetch('/api/settings')).json();
-  for (const k of KEYS) {
-    const el = $('s_' + k); if (!el) continue;
-    if (el.type === 'checkbox') el.checked = !!s[k];
-    else el.value = s[k] ?? '';
-  }
-  $('savemsg').textContent = '';
-  applySourceVisibility(s);
+  try {
+    const s = await (await fetch('/api/settings')).json();
+    for (const k of KEYS) {
+      const el = $('s_' + k); if (!el) continue;
+      if (el.type === 'checkbox') el.checked = !!s[k];
+      else el.value = s[k] ?? '';
+    }
+    $('savemsg').textContent = '';
+    applySourceVisibility(s);
+  } catch { return sys('could not load settings — connection lost'); }
+  lastFocus = document.activeElement;
   overlay.classList.add('open');
+  $('s_source_local').focus();
 };
 $('gear').onclick = openSettings;
 if (location.hash === '#settings') openSettings();  // deep link / screenshot hook
-$('s_close').onclick = () => overlay.classList.remove('open');
-overlay.onclick = e => { if (e.target === overlay) overlay.classList.remove('open'); };
+$('s_close').onclick = closeSettings;
+overlay.onclick = e => { if (e.target === overlay) closeSettings(); };
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && overlay.classList.contains('open')) closeSettings();
+});
+overlay.addEventListener('keydown', e => {  // keep Tab inside the dialog
+  if (e.key !== 'Tab') return;
+  const items = [...overlay.querySelectorAll('button, input, select')]
+    .filter(el => !el.disabled);
+  if (!items.length) return;
+  const first = items[0], last = items[items.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+});
 $('s_save').onclick = async () => {
   const body = {};
   for (const k of KEYS) {
     const el = $('s_' + k); if (!el) continue;
     body[k] = el.type === 'checkbox' ? el.checked : el.value;
   }
-  const r = await (await post('/api/settings', body)).json();
-  if (r.ok) applySourceVisibility(r.settings);
-  $('savemsg').textContent = r.ok
-    ? (r.restart_needed.length ? `saved — restart to apply: ${r.restart_needed.join(', ')}` : 'saved — live now')
-    : ('error: ' + r.error);
+  try {
+    const r = await (await post('/api/settings', body)).json();
+    if (r.ok) applySourceVisibility(r.settings);
+    $('savemsg').textContent = r.ok
+      ? (r.restart_needed.length ? `saved — restart to apply: ${r.restart_needed.join(', ')}` : 'saved — live now')
+      : ('error: ' + r.error);
+  } catch { $('savemsg').textContent = 'save failed — connection lost'; }
 };
 
+// --- dead screen (quit button or lost backend) ---
 let dead = false;
-document.getElementById('power').onclick = async () => {
-  if (!confirm('Shut down DJ-K?')) return;
-  try { await post('/api/cmd', {cmd:'quit'}); } catch {}
+const enterDead = html => {
   dead = true;
   document.getElementById('f').style.display = 'none';
   document.getElementById('side').style.display = 'none';
@@ -284,21 +366,36 @@ document.getElementById('power').onclick = async () => {
   document.querySelectorAll('#controls button, #vol').forEach(el => el.disabled = true);
   const d = document.getElementById('dead');
   d.style.display = 'flex';
-  d.innerHTML = '⏻ DJ-K has shut down.<br>Restart with <code>./run.sh web</code> or the app-grid entry.';
+  d.innerHTML = html;
+};
+document.getElementById('power').onclick = async () => {
+  if (!confirm('Shut down DJ-K?')) return;
+  try { await post('/api/cmd', {cmd:'quit'}); } catch {}
+  enterDead('DJ-K has shut down.<br>Restart with <code>./run.sh web</code> or the app-grid entry.');
   document.title = 'DJ-K — shut down';
 };
 
 // --- state poll ---
+let fails = 0, pausedShown = null;
 const poll = async () => {
   if (dead) return;
   try {
     const s = await (await fetch('/api/state')).json();
-    now.textContent = s.playing ? '♪ ' + (s.current || '') :
+    fails = 0;
+    now.textContent = s.playing ? '♪ ' + (s.current || '') + (s.paused ? ' — paused' : '') :
       (s.queue.length ? `♪ next up: ${s.queue[0]}` : '♪ —');
-    document.title = s.playing ? '▶ ' + (s.current||'DJ-K') : 'DJ-K';
+    document.title = s.playing ? '♪ ' + (s.current||'DJ-K') : 'DJ-K';
     if (s.bpm) { bpmEl.hidden = false; bpmEl.textContent = s.bpm + ' BPM'; }
     else bpmEl.hidden = true;
-    if (s.volume != null && s.volume !== lastVol) { volEl.value = lastVol = s.volume; }
+    if (!!s.paused !== pausedShown) {
+      pausedShown = !!s.paused;
+      $('btnpause').innerHTML = (s.paused ? ICONS.play : ICONS.pause) +
+        `<span>${s.paused ? 'resume' : 'pause'}</span>`;
+    }
+    document.getElementById('libwrap').style.display = s.source_local ? '' : 'none';
+    if (s.volume != null && s.volume !== lastVol && Date.now() - volAt > 1500) {
+      volEl.value = lastVol = s.volume;
+    }
     if (s.duration) {
       seek.max = s.duration;
       if (!seeking && s.pos != null) seek.value = s.pos;
@@ -307,7 +404,10 @@ const poll = async () => {
     queueEl.innerHTML = s.queue.length
       ? s.queue.map(t => `<div class="q">${esc(t)}</div>`).join('')
       : '<div class="q" style="color:var(--dim)">empty</div>';
-  } catch {}
+  } catch {
+    if (++fails >= 3)
+      enterDead('connection lost — the DJ-K server stopped responding.<br>Restart with <code>./run.sh web</code>.');
+  }
 };
 poll(); setInterval(poll, 1000);
 </script>

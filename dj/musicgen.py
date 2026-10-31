@@ -11,9 +11,8 @@ from . import settings
 
 # venv layout differs: bin/python (POSIX) vs Scripts\python.exe (Windows)
 _VENV_BIN = ("Scripts/python.exe" if os.name == "nt" else "bin/python")
-VENV_PY = Path(os.environ.get(
-    "DJ_GEN_PYTHON",
-    Path.home() / ".config/djjamal/gen-env" / _VENV_BIN))
+VENV_PY = Path(settings.resolve("gen_python") or
+               (Path.home() / ".config/djjamal/gen-env" / _VENV_BIN))
 DEFAULT_SECS = 12
 
 # runs inside the venv: load MusicGen-small, write one wav, exit
@@ -55,6 +54,15 @@ def generate(prompt, secs=DEFAULT_SECS, timeout=600):
             stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
         return wav, None
     except subprocess.CalledProcessError as e:
+        _unlink(wav)
         return None, (e.stderr or b"generation failed").decode()[-300:]
     except Exception as e:
+        _unlink(wav)
         return None, str(e)
+
+
+def _unlink(path):
+    try:
+        os.unlink(path)
+    except OSError:
+        pass

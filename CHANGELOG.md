@@ -1,15 +1,26 @@
 # Changelog
 
-All notable changes to DJ Jamal are documented here.
+All notable changes to DJ-K are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [unreleased]
 
 ### Added
 - Web UI quit button (⏻): confirm dialog → stops playback and shuts DJ-K down cleanly from the page; the page switches to a shut-down state instead of spamming a dead server
+- Web UI: pause button reflects real state (pause ↔ resume from the poll), library rescan button (`POST /api/rescan`), track/API errors surface as status lines in chat, dead screen when the backend stops responding (3 failed polls)
+- `DJ_LLAMACPP_MODEL`, `DJ_GEN_PYTHON`, `DJ_WEB_PORT` moved into the settings SCHEMA (same env names, now visible to the settings snapshot and README table)
 
 ### Fixed
 - App icon actually fixed this time: bright purple→cyan gradient tile with bold white headphones (the v0.8 icon was near-black and near-invisible on dark themes); favicon and web header emblem match; PNG fallbacks at 512–16px installed alongside the SVG, with icon/desktop cache refresh in `install-desktop`
+- Startup crashed on machines without python3-gi (all Windows, headless Linux): tray imports guarded, and `DJ_TRAY=0` actually disables the tray now
+- Missing mpv killed the queue-advance thread, the REPL dispatch and web handlers (`FileNotFoundError` vs `ValueError`-only handlers) — now a single friendly ValueError at the mpv launch choke point
+- Pause was invisible: `status()` reports `paused`, the web button toggles to "resume", MPRIS shows `Paused`
+- DJ voice restored volume to a hard 100 after speaking — now returns to the pre-duck level
+- TTS temp wavs are deleted after playback (were leaking one multi-MB wav per DJ line); musicgen cleans its temp wav on failed generation; quit paths terminate an in-flight voice
+- CSRF: POST endpoints reject cross-site requests (Origin / Sec-Fetch-Site guard) — a hostile page can no longer quit the app or rewrite settings
+- Ctrl+C during a blocking LLM call exits cleanly in REPL and web; bad numeric API input (volume/seek/Content-Length) returns 400 instead of a dropped connection; malformed env ints fall back to defaults instead of crashing import
+- Settings file writes are atomic (temp + rename) and lock-protected; the settings UI associates every label with its control, closes on Escape, and traps focus
+- Web UI design polish: full token palette + font (form controls no longer render in the browser default font), visible `:focus-visible` rings everywhere, `prefers-reduced-motion` support, SVG transport icons instead of emoji, sentence-case section labels, capped chat line measure, queue/library stack below chat on mobile instead of disappearing, `noscript` notice
 
 ## [0.9.1] — 2026-11-01
 
@@ -18,7 +29,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 - Desktop toggles: **Media controls (MPRIS)** and **Tray icon** on/off (restart-apply) — `DJ_MPRIS` / `DJ_TRAY`
 - Settings modal reorganized into Music sources / Playback / Desktop / AI backend / Advanced, with a pinned Save bar; the library panel hides when the local source is off
 - The DJ brain now receives the live source list ("Sources available: local library on, YouTube OFF, …") and steers accordingly
-- 4 new tests (45 total)
+- 4 new tests (41 total)
 
 ### Verified live
 - Local off: `/api/track` → 400, library panel hidden, and a Sabaton request resolved through YouTube (mpv streaming from googlevideo.com proves the reroute)

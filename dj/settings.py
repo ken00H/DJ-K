@@ -7,9 +7,11 @@ resolved once at import (restart to apply). The file may hold the OpenAI key,
 so it is written with 0600 permissions."""
 import json
 import os
+import threading
 from pathlib import Path
 
 FILE = Path.home() / ".config" / "djjamal" / "settings.json"
+_lock = threading.Lock()
 
 # key -> (env var, default, type, applies-live)
 SCHEMA = {
@@ -23,6 +25,7 @@ SCHEMA = {
     "tray":         ("DJ_TRAY", "1", bool, False),
     "provider":     ("DJ_PROVIDER", "auto", str, False),
     "llamacpp_url": ("DJ_LLAMACPP_URL", "http://127.0.0.1:8080", str, False),
+    "llamacpp_model": ("DJ_LLAMACPP_MODEL", "local", str, False),
     "ollama_url":   ("OLLAMA_URL", "http://localhost:11434", str, False),
     "ollama_model": ("DJ_OLLAMA_MODEL", "gemma4:e2b-it-qat", str, False),
     "openai_model": ("DJ_OPENAI_MODEL", "gpt-4o-mini", str, False),
@@ -30,6 +33,8 @@ SCHEMA = {
     "llm_timeout":  ("DJ_LLM_TIMEOUT", "300", int, False),
     "music_dir":    ("DJ_MUSIC_DIR", "~/Music", str, False),
     "tts_voice":    ("DJ_TTS_VOICE", "~/.config/djjamal/voices/en_US-lessac-medium.onnx", str, False),
+    "gen_python":   ("DJ_GEN_PYTHON", "", str, False),
+    "web_port":     ("DJ_WEB_PORT", "8090", int, False),
 }
 RESTART_KEYS = tuple(k for k, (_, _, _, live) in SCHEMA.items() if not live)
 
@@ -52,10 +57,14 @@ def _coerce(raw, typ):
 
 
 def resolve(key):
-    """Env var > settings file > default. Raises KeyError for unknown keys."""
+    """Env var > settings file > default. Raises KeyError for unknown keys.
+    A malformed env value falls through to file/default instead of crashing."""
     env, default, typ, _live = SCHEMA[key]
     if os.environ.get(env):
-        return _coerce(os.environ[env], typ)
+        try:
+            return _coerce(os.environ[env], typ)
+        except (TypeError, ValueError):
+            pass
     stored = _load_file().get(key)
     if stored is not None:
         try:
@@ -73,15 +82,18 @@ def snapshot():
 def update(changes):
     """Validate + merge into the settings file (env vars always win over it).
     Returns the list of saved keys; unknown keys raise KeyError."""
-    data = _load_file()
-    for k, v in changes.items():
-        if k not in SCHEMA:
-            raise KeyError(k)
-        _, _, typ, _live = SCHEMA[k]
-        data[k] = _coerce(v, typ)
-    FILE.parent.mkdir(parents=True, exist_ok=True)
-    FILE.write_text(json.dumps(data, indent=2))
-    os.chmod(FILE, 0o600)  # may contain the OpenAI key
+    with _lock:
+        data = _load_file()
+        for k, v in changes.items():
+            if k not in SCHEMA:
+                raise KeyError(k)
+            _, _, typ, _live = SCHEMA[k]
+            data[k] = _coerce(v, typ)
+        FILE.parent.mkdir(parents=True, exist_ok=True)
+        tmp = FILE.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(data, indent=2))
+        os.chmod(tmp, 0o600)  # may contain the OpenAI key
+        os.replace(tmp, FILE)  # atomic — no partially-written settings file
     return list(changes)
 
 

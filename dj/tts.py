@@ -1,15 +1,29 @@
 """DJ voice: optional piper TTS. Synthesizes to a temp wav, plays it through
 the same validated mpv path — no extra player, no new hard dependency
 (app runs stdlib-only when piper or the voice model is absent)."""
+import atexit
 import os
 import shutil
 import subprocess
 import tempfile
+import threading
 from pathlib import Path
 
 from . import mpvproc, settings
 
 MAX_CHARS = 280
+_live = []  # in-flight voice mpv processes (cleaned up on exit/quit)
+atexit.register(lambda: stop_all())
+
+
+def stop_all():
+    """Terminate any in-flight voice playback — used by quit paths and atexit."""
+    for p in _live:
+        try:
+            p.terminate()
+        except Exception:
+            pass
+    _live.clear()
 
 
 def _voice():
@@ -50,12 +64,29 @@ def speak(text):
             ["piper", "-m", str(_voice()), "-f", wav],
             input=text.encode(), stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL, check=True, timeout=120)
-        sock = wav + ".sock"  # dummy path; mpv creates and we clean it below
-        return mpvproc.launch(sock, 100, wav)
+        sock = wav + ".sock"  # dummy path; mpv creates it
+        proc = mpvproc.launch(sock, 100, wav)
     except Exception:
         try:
             os.unlink(wav)
         except OSError:
             pass
         return None
-    # temp wav lives in /tmp until reboot — mpv may stream it lazily
+    _live.append(proc)
+    threading.Thread(target=_reap, args=(proc, wav, sock), daemon=True).start()
+    return proc
+
+
+def _reap(proc, wav, sock):
+    """Delete the temp wav (and its IPC socket) once mpv is done with it."""
+    try:
+        proc.wait(timeout=120)
+    except Exception:
+        proc.terminate()
+    for p in (wav, sock):
+        try:
+            os.unlink(p)
+        except OSError:
+            pass
+    if proc in _live:
+        _live.remove(proc)
