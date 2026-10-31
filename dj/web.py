@@ -7,9 +7,9 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from dj import djbrain, library            # noqa: E402
-from dj.main import enqueue_smart          # noqa: E402
-from dj.player import Player               # noqa: E402
+from dj import djbrain, library
+from dj.main import enqueue_smart
+from dj.player import Player
 
 INDEX_HTML = (Path(__file__).with_name("index.html")).read_text()
 HISTORY = []

@@ -2,7 +2,7 @@
 import json
 import re
 
-from . import llm, library
+from . import library, llm
 
 SYSTEM = """You are DJ Jamal, a fun radio DJ personality managing the user's music.
 You control playback. ALWAYS reply with a single JSON object, no markdown fences:

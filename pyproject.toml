@@ -1,0 +1,7 @@
+[tool.ruff]
+line-length = 160
+
+[tool.ruff.lint]
+# Classic correctness+style rules. The codebase deliberately uses broad
+# `except Exception` for REPL/web resilience — BLE/S/PERF are not wanted.
+select = ["E", "F", "W", "I"]

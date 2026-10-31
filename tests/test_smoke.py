@@ -9,7 +9,7 @@ from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from dj import djbrain, library, mpvproc  # noqa: E402
+from dj import djbrain, library, mpvproc
 
 
 class ValidateSource(unittest.TestCase):
