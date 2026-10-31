@@ -144,5 +144,50 @@ class TTS(unittest.TestCase):
         self.assertTrue(out.endswith("."), out[-5:])
 
 
+class Beatmatch(unittest.TestCase):
+    def setUp(self):
+        from dj import beatmatch
+        self.bm = beatmatch
+        self.tmp = Path(tempfile.mkdtemp())
+        patcher = mock.patch.object(beatmatch, "CACHE", self.tmp / "bpm.json")
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_speed_for_basic_ratio(self):
+        self.assertAlmostEqual(self.bm.speed_for(105, 100), 1.05, places=3)
+        self.assertAlmostEqual(self.bm.speed_for(100, 105), 1 / 1.05, places=3)
+
+    def test_speed_for_none_cases(self):
+        self.assertIsNone(self.bm.speed_for(None, 100))
+        self.assertIsNone(self.bm.speed_for(100, None))
+        self.assertIsNone(self.bm.speed_for(100, 0))
+
+    def test_speed_for_clamps_far_tempos(self):
+        self.assertIsNone(self.bm.speed_for(120, 90))    # +33% — too far
+        self.assertIsNone(self.bm.speed_for(90, 130))    # -31% — too far
+
+    def test_speed_for_uses_half_double_time_feel(self):
+        # 170 vs 85 is the same groove double-time; ratio 2.0 -> halved to 1.0
+        self.assertAlmostEqual(self.bm.speed_for(170, 85), 1.0, places=6)
+        # 85 vs 170: 0.5 -> doubled to 1.0
+        self.assertAlmostEqual(self.bm.speed_for(85, 170), 1.0, places=6)
+
+    def test_cache_roundtrip_and_staleness(self):
+        f = self.tmp / "song.mp3"
+        f.write_bytes(b"x")
+        self.assertIsNone(self.bm.cached_bpm(str(f)))
+        run_result = mock.Mock(stdout="120.0\n")
+        with mock.patch.object(self.bm.subprocess, "run", return_value=run_result):
+            bpm = self.bm.analyze(str(f))
+        self.assertEqual(bpm, 120.0)
+        self.assertEqual(self.bm.cached_bpm(str(f)), 120.0)
+        # mtime change invalidates
+        f.write_bytes(b"y")
+        import os as _os
+        m = f.stat().st_mtime + 10
+        _os.utime(f, (m, m))
+        self.assertIsNone(self.bm.cached_bpm(str(f)))
+
+
 if __name__ == "__main__":
     unittest.main()

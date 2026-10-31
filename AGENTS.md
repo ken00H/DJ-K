@@ -17,7 +17,7 @@ Personal AI DJ: natural-language chat that picks music, plays via mpv, talks lik
 - **`llm.py` provider chain**: llama.cpp → Ollama → OpenAI, tried in order. Requests are pinned to loopback or `api.openai.com` — do not widen this.
 - **Cross-platform (Linux + Windows).** mpv IPC: Unix sockets on POSIX, named pipes on Windows — all in `player.py` (`WINDOWS`, `_sock_ready`, `_new_sock_name`). Never add `AF_UNIX` usage outside `player.py`. Venv bin paths differ per OS (`musicgen._VENV_BIN`). CI runs ubuntu (3.10, 3.12) + windows (3.12); keep tests platform-neutral (no `/bin/*` fixtures without mocking).
 - Entry points: `dj/main.py` (REPL) and `dj/web.py` (web); both share `enqueue_smart`, `generate_track`, `Player`, and `library`.
-- **Optional heavy deps run as subprocesses, never imports**: piper (TTS CLI) and MusicGen (venv python at `DJ_GEN_PYTHON`, called by `musicgen.py`). The main app must stay importable with none of them present — keep new integrations behind an `available()` check.
+- **Optional heavy deps run as subprocesses, never imports**: piper (TTS CLI), MusicGen (venv python at `DJ_GEN_PYTHON`, called by `musicgen.py`), and librosa beat tracking (`beatmatch.py`, same venv). The main app must stay importable with none of them present — keep new integrations behind an `available()` check. Beatmatch is tempo-match only (no beat-phase alignment yet); `beatmatch.speed_for` is the pure ratio function.
 
 ## Conventions
 

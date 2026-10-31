@@ -23,12 +23,14 @@ def validate_source(source):
     raise ValueError(f"blocked non-file non-URL source: {source!r}")
 
 
-def launch(sock, start_volume, source):
-    return subprocess.Popen(
-        ["mpv", "--no-video", "--really-quiet", "--no-terminal",
-         f"--input-ipc-server={sock}", f"--volume={int(start_volume)}",
-         "--", validate_source(source)],
-        shell=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+def launch(sock, start_volume, source, speed=1.0):
+    argv = ["mpv", "--no-video", "--really-quiet", "--no-terminal",
+            f"--input-ipc-server={sock}", f"--volume={int(start_volume)}"]
+    if speed != 1.0:  # beatmatch: pitch-corrected tempo match (mpv default)
+        argv.append(f"--speed={speed:.4f}")
+    argv += ["--", validate_source(source)]
+    return subprocess.Popen(argv, shell=False,
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 def resolve_youtube(query):

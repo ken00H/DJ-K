@@ -7,10 +7,11 @@ import tempfile
 import threading
 import time
 
-from . import mpvproc
+from . import beatmatch, mpvproc
 
 FADE_SECS = 2.5
-# ponytail: volume-ramp overlap crossfade, not beatmatch; beatmatch needs tempo analysis
+# ponytail: crossfade is volume-ramp overlap; tempo matching via beatmatch.py,
+# true beat-phase alignment (start on the beat) needs beat-grid data — future
 CROSSFADE = os.environ.get("DJ_CROSSFADE", "1") == "1"
 WINDOWS = os.name == "nt"
 
@@ -21,6 +22,7 @@ class Player:
         self.proc = None
         self.sock_path = None
         self.current = None
+        self.current_source = None  # path/URL of current track (for beatmatch)
         self.on_track_start = on_track_start
         self._lock = threading.RLock()
         threading.Thread(target=self._advance_loop, daemon=True).start()
@@ -64,10 +66,10 @@ class Player:
         return os.path.join(runtime, f"djjamal-{secrets.token_hex(8)}.sock")
 
     @staticmethod
-    def _spawn(source, start_volume=100):
+    def _spawn(source, start_volume=100, speed=1.0):
         # unpredictable pipe/socket name (mkstemp would pre-create the file)
         sock = Player._new_sock_name()
-        p = mpvproc.launch(sock, start_volume, source)
+        p = mpvproc.launch(sock, start_volume, source, speed)
         for _ in range(50):
             if Player._sock_ready(sock):
                 break
@@ -96,12 +98,25 @@ class Player:
         Player._unlink(sock)
 
     # --- public API --------------------------------------------------------
+    def _transition_speed(self, new_source):
+        """Speed for an incoming local file to match the outgoing track's tempo.
+        YouTube/uncached/absent-analysis cases return 1.0 (plain crossfade)."""
+        if not beatmatch.available():
+            return 1.0
+        old_src = self.current_source
+        if not (old_src and os.path.isfile(old_src) and os.path.isfile(new_source)):
+            return 1.0
+        return beatmatch.speed_for(beatmatch.cached_bpm(old_src),
+                                   beatmatch.cached_bpm(new_source)) or 1.0
+
     def play_now(self, source, title=""):
         """Start source immediately (with crossfade if something is playing)."""
         with self._lock:
+            speed = self._transition_speed(source)
             old_proc, old_sock = self.proc, self.sock_path
-            self.proc, self.sock_path = self._spawn(source)
-            self.current = title or source
+            self.proc, self.sock_path = self._spawn(source, speed=speed)
+            self.current, self.current_source = title or source, source
+        beatmatch.prewarm([s for s, _ in self.queue[:2]])  # warm next transition
         if old_proc and old_proc.poll() is None:
             if CROSSFADE:
                 threading.Thread(target=self._fade_and_kill,
@@ -130,7 +145,7 @@ class Player:
             self.queue.clear()
             if self.proc and self.proc.poll() is None:
                 self.proc.terminate()
-            self.proc, self.current = None, None
+            self.proc, self.current, self.current_source = None, None, None
 
     def pause(self):
         self._ipc(self.sock_path, ["cycle", "pause"])

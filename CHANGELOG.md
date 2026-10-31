@@ -3,6 +3,15 @@
 All notable changes to DJ Jamal are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.6.0] — 2026-11-01
+
+### Added
+- Beatmatch: tempo-matched transitions — librosa BPM detection (first 60s per track, cached in `~/.config/djjamal/bpm.json`), incoming local track launches at a pitch-preserved `--speed` matching the outgoing tempo (±10% clamp, half/double-time aware); queue head pre-warmed in background; YouTube sources fall back to plain crossfade; `DJ_BEATMATCH=0` disables; shares the generation venv (`pip install librosa`)
+- 5 new tests (27 total)
+
+### Verified live
+- 8 tracks analyzed (86–172 BPM, all plausible); transition Bullet For My Valentine (161.5 BPM) into Five Finger Death Punch (152.0 BPM) launched mpv with exactly `--speed=1.0625`
+
 ## [0.5.0] — 2026-10-31
 
 ### Added

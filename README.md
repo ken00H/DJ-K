@@ -17,6 +17,7 @@ DJ ▸ Jamal in the booth, we're turning this gym into a metal blast chamber! ..
 - **DJ voice** — optional piper TTS speaks intros over ducked music (`DJ_TTS=0` to disable)
 - **AI track generation** — optional MusicGen hook: "make me a chill lo-fi beat" synthesizes a fresh track locally
 - **Crossfade** — volume-ramp blend on every track change (set `DJ_CROSSFADE=0` to disable)
+- **Beatmatch** — optional tempo-matched transitions: librosa detects BPM, incoming track speed-matches the outgoing one (±10%, pitch-preserved; `DJ_BEATMATCH=0` to disable)
 - **Pluggable AI** — llama.cpp → Ollama → OpenAI, tried in that order automatically
 
 ## Requirements
@@ -78,6 +79,7 @@ Anything else goes to the DJ brain.
 | `DJ_TTS` | `1` | `0` disables the DJ voice |
 | `DJ_TTS_VOICE` | `~/.config/djjamal/voices/en_US-lessac-medium.onnx` | piper voice model |
 | `DJ_MUSICGEN` | `1` | `0` disables AI generation |
+| `DJ_BEATMATCH` | `1` | `0` disables tempo-matched transitions |
 | `DJ_GEN_PYTHON` | `~/.config/djjamal/gen-env/bin/python` | python of the generation venv |
 
 **DJ voice (optional):** `pip install --user --break-system-packages piper-tts`, then
@@ -96,6 +98,15 @@ Then just ask the DJ: "generate a chill lo-fi beat". First use downloads the
 model (~2.4 GB to `~/.cache/huggingface`). CPU synthesis takes minutes per
 clip — the DJ queues it in the background and tells you when it lands.
 Without the venv, generation is silently unavailable.
+
+**Beatmatch (optional):** shares the generation venv — one extra package:
+```bash
+~/.config/djjamal/gen-env/bin/pip install librosa
+```
+BPM is detected per track (first 60s, cached at `~/.config/djjamal/bpm.json`),
+and on transitions between local tracks the incoming one plays at a
+pitch-preserved speed matching the outgoing tempo (±10% clamp, half/double-time
+aware). YouTube-to-anything transitions use the plain crossfade.
 
 Library cache lives at `~/.config/djjamal/library.json` (keyed to `DJ_MUSIC_DIR`, refreshed daily, or `/rescan`).
 
@@ -133,6 +144,6 @@ you ─► main.py (REPL) ─► djbrain.py ─► llm.py (llama.cpp → Ollama 
 
 ## Roadmap ideas
 
-- True beatmatching (tempo analysis)
-- AI music generation hook (e.g. MusicGen)
-- Voice output (TTS DJ intros)
+- Beat-phase alignment (start transitions exactly on the beat — needs beat-grid data, not just BPM)
+- Web UI upgrade: queue view, volume slider, library browser, seek
+- Voice input (speech-to-text DJ requests)
