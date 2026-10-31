@@ -14,6 +14,7 @@ DJ ▸ Jamal in the booth, we're turning this gym into a metal blast chamber! ..
 - **Local library first** — scans `~/Music`, matches your files before falling back to YouTube
 - **YouTube fallback** — anything not local resolves and streams via yt-dlp
 - **DJ persona** — LLM-powered radio-host banter between tracks
+- **DJ voice** — optional piper TTS speaks intros over ducked music (`DJ_TTS=0` to disable)
 - **Crossfade** — volume-ramp blend on every track change (set `DJ_CROSSFADE=0` to disable)
 - **Pluggable AI** — llama.cpp → Ollama → OpenAI, tried in that order automatically
 
@@ -64,6 +65,13 @@ Anything else goes to the DJ brain.
 | `DJ_OPENAI_MODEL` | `gpt-4o-mini` | OpenAI model |
 | `DJ_LLM_TIMEOUT` | `300` | LLM request timeout (seconds) |
 | `DJ_CROSSFADE` | `1` | `0` disables crossfade |
+| `DJ_TTS` | `1` | `0` disables the DJ voice |
+| `DJ_TTS_VOICE` | `~/.config/djjamal/voices/en_US-lessac-medium.onnx` | piper voice model |
+
+**DJ voice (optional):** `pip install --user --break-system-packages piper-tts`, then
+download a voice, e.g.
+`curl -L -o ~/.config/djjamal/voices/en_US-lessac-medium.onnx https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx`
+(+ the `.onnx.json` next to it). Without piper, the app silently skips TTS.
 
 Library cache lives at `~/.config/djjamal/library.json` (keyed to `DJ_MUSIC_DIR`, refreshed daily, or `/rescan`).
 

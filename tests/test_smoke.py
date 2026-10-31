@@ -9,7 +9,7 @@ from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from dj import djbrain, library, mpvproc
+from dj import djbrain, library, mpvproc, tts
 
 
 class ValidateSource(unittest.TestCase):
@@ -94,6 +94,24 @@ class Library(unittest.TestCase):
         self.assertEqual(library.search(tracks, "b")[0]["name"], "b")
         self.assertEqual(library.resolve(tracks, "a")["name"], "a")
         self.assertIsNone(library.resolve(tracks, "nothing matches this"))
+
+
+class TTS(unittest.TestCase):
+    def test_short_text_untouched(self):
+        self.assertEqual(tts.clip("Jam in the house!"), "Jam in the house!")
+
+    def test_whitespace_collapsed(self):
+        self.assertEqual(tts.clip("  Jam   in \n the  house  "), "Jam in the house")
+
+    def test_long_text_capped_and_ends_clean(self):
+        out = tts.clip("word " * 200)
+        self.assertLessEqual(len(out), tts.MAX_CHARS + 1)
+        self.assertTrue(out.endswith((".", "!", "?", "…")), out[-5:])
+
+    def test_clip_prefers_sentence_boundary(self):
+        text = ("First sentence here. " * 30).strip()
+        out = tts.clip(text)
+        self.assertTrue(out.endswith("."), out[-5:])
 
 
 if __name__ == "__main__":

@@ -110,6 +110,11 @@ class Player:
     def pause(self):
         self._ipc(self.sock_path, ["cycle", "pause"])
 
+    def duck(self, on):
+        """Duck music volume to 25% (on=True) / back to 100% — used while the
+        DJ voice speaks over the track."""
+        self._ipc(self.sock_path, ["set_property", "volume", 25 if on else 100])
+
     def _playing(self):
         return self.proc is not None and self.proc.poll() is None
 

@@ -13,7 +13,7 @@ Personal AI DJ: natural-language chat that picks music, plays via mpv, talks lik
 
 - **Stdlib only.** Do not add pip dependencies. Web server is `http.server` (no Flask/FastAPI), binds `127.0.0.1` only.
 - **The brain never touches audio.** `djbrain.py` only returns JSON `{reply, action, tracks[]}`. Playback decisions stay there; audio execution stays in `player.py`/`mpvproc.py`.
-- **`mpvproc.py` is the single place mpv launches.** Every source is validated (existing local file or `http(s)`/`ytsearch` URL) — keep that validation intact for any new source. Queued YouTube queries are deferred `ytq:` markers; `player.py` resolves them at play time (URLs expire ~6h) — don't pre-resolve whole queues.
+- **`mpvproc.py` is the single place mpv launches.** Every source is validated (existing local file or `http(s)`/`ytsearch` URL) — keep that validation intact for any new source. This includes the TTS voice: `tts.py` synthesizes a wav and plays it via `mpvproc.launch`, never a second player. Queued YouTube queries are deferred `ytq:` markers; `player.py` resolves them at play time (URLs expire ~6h) — don't pre-resolve whole queues.
 - **`llm.py` provider chain**: llama.cpp → Ollama → OpenAI, tried in order. Requests are pinned to loopback or `api.openai.com` — do not widen this.
 - Entry points: `dj/main.py` (REPL) and `dj/web.py` (web); both share `enqueue_smart`, `Player`, and `library`.
 

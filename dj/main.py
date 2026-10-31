@@ -5,7 +5,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from dj import djbrain, library, mpvproc
+import threading
+
+from dj import djbrain, library, mpvproc, tts
 from dj.player import Player
 
 BOLD, CYAN, MAGENTA, DIM, RESET = "\033[1m", "\033[36m", "\033[35m", "\033[2m", "\033[0m"
@@ -36,6 +38,25 @@ def enqueue_smart(player, lib, queries):
         resolve_later(pending_yt[:1])     # first now, so playback starts quickly
         for q in pending_yt[1:]:
             player.enqueue(f"ytq:{q}", q)  # resolved when it reaches the deck
+
+
+def dj_say(player, text):
+    """Speak the DJ reply over ducked music in a background thread."""
+    if not tts.available():
+        return
+
+    def run():
+        proc = tts.speak(text)      # blocks during synthesis, plays after
+        if not proc:
+            return
+        player.duck(True)
+        try:
+            proc.wait(timeout=90)
+        except Exception:
+            proc.terminate()
+        player.duck(False)
+
+    threading.Thread(target=run, daemon=True).start()
 
 
 def main():
@@ -106,9 +127,11 @@ def main():
             elif action in ("play", "search") and tracks:
                 player.stop()
                 enqueue_smart(player, lib, tracks)
+                dj_say(player, brain["reply"])
             elif action in ("queue", "playlist") and tracks:
                 enqueue_smart(player, lib, tracks)
                 print(f"{DIM}queued {len(tracks)} tracks{RESET}")
+                dj_say(player, brain["reply"])
         except ValueError as e:
             print(f"{DIM}skipped a bad source: {e}{RESET}")
 

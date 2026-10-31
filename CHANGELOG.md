@@ -3,6 +3,16 @@
 All notable changes to DJ Jamal are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.0] — 2026-10-31
+
+### Added
+- DJ voice: optional piper TTS (`dj/tts.py`) — speaks DJ intros over music ducked to 25%, restores after; plays through the same validated mpv path; auto-disabled when piper or the voice model is absent (`DJ_TTS=0` to force off, `DJ_TTS_VOICE` to pick a voice)
+- `Player.duck()` volume control via mpv IPC
+- 4 TTS clip tests (19 total)
+
+### Verified live
+- Full playback pass on the real stack (llama.cpp Qwen3, 186 tracks, mpv): play, queue, both `/skip` paths, pause, stop, YouTube resolve + `ytq:` deferral, web `/api/state` — no code changes needed
+
 ## [0.2.1] — 2026-10-31
 
 ### Fixed
