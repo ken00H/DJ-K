@@ -3,6 +3,16 @@
 All notable changes to DJ Jamal are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.9.0] — 2026-11-01
+
+### Added
+- Settings: `dj/settings.py` store at `~/.config/djjamal/settings.json` (0600) with env-var-over-file precedence; web settings UI (gear button → modal): playback toggles (crossfade/DJ voice/beatmatch/music-gen) apply live, AI backend (provider, llama.cpp/Ollama URLs + models, OpenAI key with masking, timeout) and paths (music folder, TTS voice) restart-apply with a clear "restart needed" hint; `GET/POST /api/settings` (key masked; masked key posted back is a no-op); REPL `/settings`
+- Logo: `assets/djk-logo.svg` (emblem + DJ-K wordmark, purple→cyan) in the README header; emblem inline in the web header; SVG favicon (browser tab/taskbar identity)
+- 7 settings tests (38 total)
+
+### Changed
+- `player`/`tts`/`beatmatch`/`musicgen`/`llm`/`library` read config through `settings` instead of import-time env constants (env vars unchanged in effect)
+
 ## [0.8.0] — 2026-11-01
 
 ### Changed

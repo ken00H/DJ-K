@@ -88,7 +88,7 @@ def main():
         os.system("")  # enables ANSI escape processing in Windows terminals
     lib = library.scan()
     print(f"{MAGENTA}🎧 DJ-K{RESET} — {len(lib)} local tracks in {library.MUSIC_DIR}")
-    print(f"{DIM}Commands: /skip /pause /stop /queue /list /rescan /quit — or just talk.{RESET}")
+    print(f"{DIM}Commands: /skip /pause /stop /queue /list /settings /rescan /quit — or just talk.{RESET}")
 
     def on_start(title):
         print(f"{CYAN}♪ now playing: {title}{RESET}")
@@ -131,6 +131,12 @@ def main():
         if msg == "/rescan":
             lib = library.scan(force=True)
             print(f"rescanned: {len(lib)} tracks")
+            continue
+        if msg == "/settings":
+            from dj import settings
+            for k, v in settings.snapshot().items():
+                shown = settings.mask(v) if k == "openai_api_key" else v
+                print(f"  {k}: {shown}")
             continue
         if msg == "/queue":
             for s, t in player.queue:

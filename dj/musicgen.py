@@ -7,7 +7,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-ENABLED = os.environ.get("DJ_MUSICGEN", "1") == "1"
+from . import settings
+
 # venv layout differs: bin/python (POSIX) vs Scripts\python.exe (Windows)
 _VENV_BIN = ("Scripts/python.exe" if os.name == "nt" else "bin/python")
 VENV_PY = Path(os.environ.get(
@@ -35,7 +36,7 @@ write(out_wav, rate, audio[0, 0].cpu().numpy())
 
 
 def available():
-    return ENABLED and VENV_PY.is_file()
+    return settings.musicgen() and VENV_PY.is_file()
 
 
 def generate(prompt, secs=DEFAULT_SECS, timeout=600):

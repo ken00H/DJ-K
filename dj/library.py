@@ -4,7 +4,9 @@ import os
 import time
 from pathlib import Path
 
-MUSIC_DIR = Path(os.environ.get("DJ_MUSIC_DIR", Path.home() / "Music"))
+from . import settings
+
+MUSIC_DIR = Path(os.path.expanduser(settings.resolve("music_dir")))
 CACHE = Path.home() / ".config" / "djjamal" / "library.json"
 AUDIO_EXT = {".mp3", ".flac", ".m4a", ".ogg", ".opus", ".wav", ".wma", ".aac"}
 

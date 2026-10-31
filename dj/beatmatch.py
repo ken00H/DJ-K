@@ -7,9 +7,8 @@ import subprocess
 import threading
 from pathlib import Path
 
-from .musicgen import VENV_PY
+from . import musicgen, settings
 
-ENABLED = os.environ.get("DJ_BEATMATCH", "1") == "1"
 CACHE = Path.home() / ".config" / "djjamal" / "bpm.json"
 CLAMP = 0.10  # ±10% speed change; beyond that tempos are too far apart to match
 
@@ -42,13 +41,13 @@ _avail_lock = threading.Lock()
 def available():
     """True when the venv python imports librosa (probed once, cached)."""
     global _avail
-    if not ENABLED:
+    if not settings.beatmatch():
         return False
     with _avail_lock:
         if _avail is None:
             try:
                 _avail = subprocess.run(
-                    [str(VENV_PY), "-c", "import librosa"],
+                    [str(musicgen.VENV_PY), "-c", "import librosa"],
                     timeout=60, stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL).returncode == 0
             except (OSError, subprocess.SubprocessError):
@@ -72,7 +71,7 @@ def analyze(path):
     """Detect BPM (float) via the venv subprocess, cache it, or None on failure.
     Takes seconds — call from a worker thread (see prewarm)."""
     try:
-        r = subprocess.run([str(VENV_PY), "-c", _SCRIPT, path],
+        r = subprocess.run([str(musicgen.VENV_PY), "-c", _SCRIPT, path],
                            capture_output=True, text=True, timeout=180)
         bpm = float(r.stdout.strip().splitlines()[-1])
     except (OSError, ValueError, IndexError, subprocess.SubprocessError):

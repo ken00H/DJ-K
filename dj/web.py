@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from dj import djbrain, library, mpris, tray
+from dj import djbrain, library, mpris, settings, tray
 from dj.main import enqueue_smart, generate_track
 from dj.player import Player
 
@@ -49,6 +49,10 @@ def make_handler(player, lib):
                 self._json([{"name": t["name"], "path": t["path"]} for t in lib])
             elif self.path == "/api/history":
                 self._json(HISTORY)
+            elif self.path == "/api/settings":
+                snap = settings.snapshot()
+                snap["openai_api_key"] = settings.mask(snap["openai_api_key"])
+                self._json(snap)
             else:
                 self.send_error(404)
 
@@ -84,6 +88,27 @@ def make_handler(player, lib):
                 except ValueError as e:
                     brain["reply"] += f" (skipped: {e})"
                 return self._json(brain)
+
+            if self.path == "/api/settings":
+                # partial update: live toggles apply now; other keys restart
+                masked_out = str(data.get("openai_api_key", ""))
+                if "…" in masked_out:  # unchanged masked key sent back
+                    data.pop("openai_api_key", None)
+                changes = {k: v for k, v in data.items() if k in settings.SCHEMA}
+                if not changes:
+                    snap = settings.snapshot()
+                    snap["openai_api_key"] = settings.mask(snap["openai_api_key"])
+                    return self._json({"ok": True, "settings": snap,
+                                       "restart_needed": []})
+                try:
+                    settings.update(changes)
+                except (KeyError, TypeError, ValueError) as e:
+                    return self._json({"error": f"invalid: {e}"}, 400)
+                saved = settings.snapshot()
+                saved["openai_api_key"] = settings.mask(saved["openai_api_key"])
+                return self._json({"ok": True, "settings": saved,
+                                   "restart_needed": [k for k in changes
+                                                      if k in settings.RESTART_KEYS]})
 
             if self.path == "/api/cmd":
                 cmd = data.get("cmd")

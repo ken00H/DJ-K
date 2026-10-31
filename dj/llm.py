@@ -1,6 +1,7 @@
 """LLM providers: llama.cpp (OpenAI-compatible, loopback) → Ollama → OpenAI. Stdlib only.
 
-Pick explicitly with DJ_PROVIDER=llamacpp|ollama|openai, or leave unset for auto.
+Pick explicitly with DJ_PROVIDER=llamacpp|ollama|openai (or the settings UI),
+or leave unset for auto. URLs/models/timeout resolve from settings at startup.
 """
 import json
 import os
@@ -8,13 +9,15 @@ import socket
 import urllib.request
 from urllib.parse import urlparse
 
-LLAMACPP_URL = os.environ.get("DJ_LLAMACPP_URL", "http://127.0.0.1:8080")
-LLAMACPP_MODEL = os.environ.get("DJ_LLAMACPP_MODEL", "local")
-OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.environ.get("DJ_OLLAMA_MODEL", "gemma4:e2b-it-qat")
+from . import settings
+
+LLAMACPP_URL = settings.resolve("llamacpp_url")
+LLAMACPP_MODEL = os.environ.get("DJ_LLAMACPP_MODEL", "local")  # llama-server mostly ignores it
+OLLAMA_URL = settings.resolve("ollama_url")
+OLLAMA_MODEL = settings.resolve("ollama_model")
 OPENAI_BASE = "https://api.openai.com/v1"  # fixed host, never env-controlled
-OPENAI_MODEL = os.environ.get("DJ_OPENAI_MODEL", "gpt-4o-mini")
-TIMEOUT = int(os.environ.get("DJ_LLM_TIMEOUT", "300"))
+OPENAI_MODEL = settings.resolve("openai_model")
+TIMEOUT = settings.resolve("llm_timeout")
 
 
 def _assert_safe(url):
@@ -61,7 +64,9 @@ def _ollama(messages):
 
 
 def _openai(messages):
-    key = os.environ["OPENAI_API_KEY"]
+    key = settings.resolve("openai_api_key")
+    if not key:
+        raise RuntimeError("OPENAI_API_KEY not set")
     r = _post(f"{OPENAI_BASE}/chat/completions",
               {"model": OPENAI_MODEL, "messages": messages},
               headers={"Authorization": f"Bearer {key}"})
@@ -69,9 +74,9 @@ def _openai(messages):
 
 
 def chat(messages):
-    """Return assistant text. Explicit DJ_PROVIDER wins; auto tries
+    """Return assistant text. Explicit provider wins; auto tries
     llama.cpp, then Ollama, then OpenAI."""
-    provider = os.environ.get("DJ_PROVIDER", "auto")
+    provider = settings.resolve("provider")
     if provider == "llamacpp":
         return _llamacpp(messages)
     if provider == "ollama":
@@ -85,7 +90,7 @@ def chat(messages):
             return fn(messages)
         except Exception as e:
             errors.append(f"{fn.__name__[1:]}: {e}")
-    if os.environ.get("OPENAI_API_KEY"):
+    if settings.resolve("openai_api_key"):
         return _openai(messages)
     raise RuntimeError(
         "No AI available. Tried: " + " | ".join(errors) +

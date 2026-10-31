@@ -220,5 +220,50 @@ class MPRIS(unittest.TestCase):
         self.assertEqual(mpris.metadata_for(None)["xesam:title"], "DJ-K")
 
 
+class Settings(unittest.TestCase):
+    def setUp(self):
+        from dj import settings
+        self.s = settings
+        self.tmp = Path(tempfile.mkdtemp())
+        patcher = mock.patch.object(settings, "FILE", self.tmp / "settings.json")
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_defaults(self):
+        self.assertTrue(self.s.resolve("crossfade"))
+        self.assertEqual(self.s.resolve("provider"), "auto")
+        self.assertEqual(self.s.resolve("llm_timeout"), 300)
+
+    def test_roundtrip_and_live_flag(self):
+        self.s.update({"crossfade": False, "ollama_model": "llama3"})
+        self.assertFalse(self.s.crossfade())
+        self.assertEqual(self.s.resolve("ollama_model"), "llama3")
+
+    def test_env_overrides_file(self):
+        self.s.update({"crossfade": True})
+        os.environ["DJ_CROSSFADE"] = "0"
+        try:
+            self.assertFalse(self.s.resolve("crossfade"))
+        finally:
+            del os.environ["DJ_CROSSFADE"]
+
+    def test_coercion(self):
+        self.s.update({"llm_timeout": "120", "beatmatch": "off"})
+        self.assertEqual(self.s.resolve("llm_timeout"), 120)
+        self.assertFalse(self.s.resolve("beatmatch"))
+
+    def test_unknown_key_rejected(self):
+        self.assertRaises(KeyError, self.s.update, {"nope": 1})
+
+    def test_mask(self):
+        self.assertEqual(self.s.mask(""), "")
+        self.assertIn("…", self.s.mask("sk-abcdef1234567890"))
+        self.assertNotIn("abcdef", self.s.mask("sk-abcdef1234567890"))
+
+    def test_restart_keys_marked(self):
+        self.assertIn("provider", self.s.RESTART_KEYS)
+        self.assertNotIn("crossfade", self.s.RESTART_KEYS)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,5 +1,7 @@
 # 🎧 DJ-K
 
+<p align="center"><img src="assets/djk-logo.svg" alt="DJ-K" width="360"></p>
+
 [![CI](https://github.com/ken00H/DJ-K/actions/workflows/ci.yml/badge.svg)](https://github.com/ken00H/DJ-K/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/ken00H/DJ-K?color=c26bff)](https://github.com/ken00H/DJ-K/releases)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-38d0ff)](https://www.python.org/)
@@ -19,6 +21,13 @@ DJ ▸ K in the booth, we're turning this gym into a metal blast chamber! ...
 
 *The DJ-K web UI — chat with the DJ, live queue, searchable library, seek/volume,
 BPM badge. The same brain also runs as a terminal REPL.*
+
+![DJ-K settings](assets/webui-settings.png)
+
+*Settings: playback toggles apply instantly; AI backend (provider, URLs, models,
+OpenAI key) and paths save to `~/.config/djjamal/settings.json` and apply on
+restart. Env vars still override the file. Open with the gear button or
+[#settings](http://127.0.0.1:8090/#settings); the REPL has `/settings`.*
 
 ## Features
 

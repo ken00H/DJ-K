@@ -7,12 +7,11 @@ import tempfile
 import threading
 import time
 
-from . import beatmatch, mpvproc
+from . import beatmatch, mpvproc, settings
 
 FADE_SECS = 2.5
 # ponytail: crossfade is volume-ramp overlap; tempo matching via beatmatch.py,
 # true beat-phase alignment (start on the beat) needs beat-grid data — future
-CROSSFADE = os.environ.get("DJ_CROSSFADE", "1") == "1"
 WINDOWS = os.name == "nt"
 
 
@@ -144,7 +143,7 @@ class Player:
             self.current, self.current_source = title or source, source
         beatmatch.prewarm([s for s, _ in self.queue[:2]])  # warm next transition
         if old_proc and old_proc.poll() is None:
-            if CROSSFADE:
+            if settings.crossfade():
                 threading.Thread(target=self._fade_and_kill,
                                  args=(old_proc, old_sock), daemon=True).start()
             else:

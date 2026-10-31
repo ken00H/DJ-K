@@ -7,17 +7,19 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from . import mpvproc
+from . import mpvproc, settings
 
-ENABLED = os.environ.get("DJ_TTS", "1") == "1"
-VOICE = Path(os.environ.get("DJ_TTS_VOICE",
-                            Path.home() / ".config/djjamal/voices/en_US-lessac-medium.onnx"))
 MAX_CHARS = 280
+
+
+def _voice():
+    return Path(os.path.expanduser(settings.resolve("tts_voice")))
 
 
 def available():
     """True when TTS can run: enabled, piper binary and voice model present."""
-    return (ENABLED and VOICE.is_file()
+    v = _voice()
+    return (settings.tts() and v.is_file()
             and shutil.which("piper") is not None)
 
 
@@ -45,7 +47,7 @@ def speak(text):
     os.close(fd)
     try:
         subprocess.run(
-            ["piper", "-m", str(VOICE), "-f", wav],
+            ["piper", "-m", str(_voice()), "-f", wav],
             input=text.encode(), stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL, check=True, timeout=120)
         sock = wav + ".sock"  # dummy path; mpv creates and we clean it below
