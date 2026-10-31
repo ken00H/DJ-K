@@ -8,8 +8,11 @@ import tempfile
 from pathlib import Path
 
 ENABLED = os.environ.get("DJ_MUSICGEN", "1") == "1"
-VENV_PY = Path(os.environ.get("DJ_GEN_PYTHON",
-                              Path.home() / ".config/djjamal/gen-env/bin/python"))
+# venv layout differs: bin/python (POSIX) vs Scripts\python.exe (Windows)
+_VENV_BIN = ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+VENV_PY = Path(os.environ.get(
+    "DJ_GEN_PYTHON",
+    Path.home() / ".config/djjamal/gen-env" / _VENV_BIN))
 DEFAULT_SECS = 12
 
 # runs inside the venv: load MusicGen-small, write one wav, exit

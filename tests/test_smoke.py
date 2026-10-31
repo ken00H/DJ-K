@@ -82,6 +82,7 @@ class MusicGen(unittest.TestCase):
             raise subprocess.CalledProcessError(1, "py")  # fail fast
 
         with mock.patch.object(musicgen, "VENV_PY", Path("/bin/true")), \
+             mock.patch.object(musicgen, "available", lambda: True), \
              mock.patch.object(musicgen.subprocess, "run", fake_run):
             musicgen.generate("  lo-fi\n  beat  ", secs=999)
         self.assertEqual(seen["prompt"], "lo-fi beat")

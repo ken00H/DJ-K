@@ -21,10 +21,11 @@ DJ ▸ Jamal in the booth, we're turning this gym into a metal blast chamber! ..
 
 ## Requirements
 
-- Linux, Python 3.10+ (stdlib only, no pip dependencies)
-- `mpv` (playback)
+- Linux **or Windows 10+**, Python 3.10+ (stdlib only, no pip dependencies)
+- `mpv` (playback) — on Windows, put `mpv.exe` on PATH (e.g. via `winget install mpv`)
 - `yt-dlp` **2026+** in `~/.local/bin` or on PATH (YouTube resolution):
-  `pip install --user --break-system-packages --upgrade yt-dlp`
+  `pip install --user --break-system-packages --upgrade yt-dlp` (Linux) or
+  `pip install --user --upgrade yt-dlp` (Windows)
 - An AI backend — any one of:
   - **llama.cpp** `llama-server` on `http://127.0.0.1:8080` (default first choice)
   - **Ollama** on `localhost:11434` with a pulled model
@@ -33,13 +34,21 @@ DJ ▸ Jamal in the booth, we're turning this gym into a metal blast chamber! ..
 ## Run
 
 ```bash
-./run.sh          # terminal REPL
+./run.sh          # terminal REPL (Linux/macOS)
 ./run.sh web      # web UI → http://127.0.0.1:8090
+run.bat           # terminal REPL (Windows)
+run.bat web       # web UI (Windows)
 ```
 
 Web UI: dark page with chat box, now-playing bar, skip/pause/stop buttons.
 Stdlib-only server (no FastAPI/Flask); binds to `127.0.0.1` only.
 Port configurable via `DJ_WEB_PORT`.
+
+Platform notes: mpv control uses Unix domain sockets on POSIX and named pipes
+(`\\.\pipe\`) on Windows — handled in `player.py`. Config/cache live under
+`~/.config/djjamal/` on both platforms. TTS and music generation are optional
+and follow the same env vars on Windows (piper needs a Windows build; the
+generation venv uses `Scripts\python.exe` automatically).
 
 Then just talk. Commands:
 

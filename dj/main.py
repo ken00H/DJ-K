@@ -84,6 +84,8 @@ def dj_say(player, text):
 
 
 def main():
+    if os.name == "nt":
+        os.system("")  # enables ANSI escape processing in Windows terminals
     lib = library.scan()
     print(f"{MAGENTA}🎧 DJ Jamal{RESET} — {len(lib)} local tracks in {library.MUSIC_DIR}")
     print(f"{DIM}Commands: /skip /pause /stop /queue /list /rescan /quit — or just talk.{RESET}")

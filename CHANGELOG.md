@@ -3,6 +3,12 @@
 All notable changes to DJ Jamal are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.5.0] — 2026-10-31
+
+### Added
+- Windows support: mpv IPC via named pipes (`\\.\pipe\`) instead of Unix sockets, ANSI colors enabled in Windows terminals, per-OS generation-venv path, `run.bat` launcher; CI now runs the test suite on `windows-latest` too
+- README: Windows requirements and platform notes
+
 ## [0.4.0] — 2026-10-31
 
 ### Added

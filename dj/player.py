@@ -12,6 +12,7 @@ from . import mpvproc
 FADE_SECS = 2.5
 # ponytail: volume-ramp overlap crossfade, not beatmatch; beatmatch needs tempo analysis
 CROSSFADE = os.environ.get("DJ_CROSSFADE", "1") == "1"
+WINDOWS = os.name == "nt"
 
 
 class Player:
@@ -30,31 +31,58 @@ class Player:
         if not sock:
             return
         try:
-            s = socket.socket(socket.AF_UNIX)
-            s.settimeout(0.5)
-            s.connect(sock)
-            s.send(json.dumps({"command": cmd}).encode() + b"\n")
-            s.close()
+            if WINDOWS:
+                # named pipe: open r+b, write, close (mpv handles short sessions)
+                with open(sock, "r+b", buffering=0) as f:
+                    f.write(json.dumps({"command": cmd}).encode() + b"\n")
+            else:
+                s = socket.socket(socket.AF_UNIX)
+                s.settimeout(0.5)
+                s.connect(sock)
+                s.send(json.dumps({"command": cmd}).encode() + b"\n")
+                s.close()
         except OSError:
             pass
 
     @staticmethod
-    def _spawn(source, start_volume=100):
-        # unpredictable socket name in a private dir (mkstemp would pre-create the file)
+    def _sock_ready(sock):
+        """True once mpv is listening. POSIX: socket file exists. Windows:
+        named pipe accepts a connection (os.path.exists is unreliable there)."""
+        if not WINDOWS:
+            return os.path.exists(sock)
+        try:
+            with open(sock, "r+b", buffering=0):
+                return True
+        except OSError:
+            return False
+
+    @staticmethod
+    def _new_sock_name():
+        if WINDOWS:
+            return f"\\\\.\\pipe\\djjamal-{secrets.token_hex(8)}"
         runtime = os.environ.get("XDG_RUNTIME_DIR", tempfile.gettempdir())
-        sock = os.path.join(runtime, f"djjamal-{secrets.token_hex(8)}.sock")
+        return os.path.join(runtime, f"djjamal-{secrets.token_hex(8)}.sock")
+
+    @staticmethod
+    def _spawn(source, start_volume=100):
+        # unpredictable pipe/socket name (mkstemp would pre-create the file)
+        sock = Player._new_sock_name()
         p = mpvproc.launch(sock, start_volume, source)
         for _ in range(50):
-            if os.path.exists(sock):
+            if Player._sock_ready(sock):
                 break
             time.sleep(0.1)
         if p.poll() is not None:  # mpv died before creating its socket (bad source)
-            try:
-                os.unlink(sock)
-            except OSError:
-                pass
+            Player._unlink(sock)
             raise ValueError(f"mpv exited immediately: {source!r}")
         return p, sock
+
+    @staticmethod
+    def _unlink(sock):
+        try:
+            os.unlink(sock)
+        except OSError:  # Windows named pipes have no file to remove
+            pass
 
     @staticmethod
     def _fade_and_kill(proc, sock, secs=FADE_SECS):
@@ -65,10 +93,7 @@ class Player:
             Player._ipc(sock, ["set_property", "volume", max(0, int(100 * i / steps))])
             time.sleep(secs / steps)
         proc.terminate()
-        try:
-            os.unlink(sock)
-        except OSError:
-            pass
+        Player._unlink(sock)
 
     # --- public API --------------------------------------------------------
     def play_now(self, source, title=""):
