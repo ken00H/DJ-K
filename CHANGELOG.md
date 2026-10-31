@@ -3,6 +3,12 @@
 All notable changes to DJ Jamal are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.4.0] — 2026-10-31
+
+### Added
+- AI track generation: new `generate` action — "make me a lo-fi beat" synthesizes music with facebook/MusicGen-small in an isolated venv (`dj/musicgen.py`, subprocess, app stays stdlib-only); generated wav enqueues like any track; auto-disabled when the venv is absent (`DJ_MUSICGEN=0`, `DJ_GEN_PYTHON`); works in REPL and web UI
+- 3 new tests (22 total)
+
 ## [0.3.0] — 2026-10-31
 
 ### Added

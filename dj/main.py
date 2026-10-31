@@ -7,10 +7,34 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import threading
 
-from dj import djbrain, library, mpvproc, tts
+from dj import djbrain, library, mpvproc, musicgen, tts
 from dj.player import Player
 
 BOLD, CYAN, MAGENTA, DIM, RESET = "\033[1m", "\033[36m", "\033[35m", "\033[2m", "\033[0m"
+
+
+def generate_track(player, prompt, secs=None, notify=None):
+    """Generate a track with MusicGen in a worker thread and queue it.
+    notify(status_line) reports progress; the venv subprocess may take
+    minutes on CPU."""
+    if not musicgen.available():
+        if notify:
+            notify("musicgen unavailable — set up ~/.config/djjamal/gen-env (see README)")
+        return
+
+    def run():
+        if notify:
+            notify(f"cooking up: {prompt}")
+        wav, err = musicgen.generate(prompt, secs) if secs else musicgen.generate(prompt)
+        if not wav:
+            if notify:
+                notify(f"generation failed: {err}")
+            return
+        player.enqueue(wav, f"✨ AI: {prompt[:60]}")
+        if notify:
+            notify(f"fresh AI track queued: {prompt[:60]}")
+
+    threading.Thread(target=run, daemon=True).start()
 
 
 def enqueue_smart(player, lib, queries):
@@ -124,6 +148,10 @@ def main():
         try:
             if action == "stop":
                 player.stop()
+            elif action == "generate" and tracks:
+                generate_track(player, tracks[0],
+                               notify=lambda s: print(f"{DIM}{s}{RESET}"))
+                dj_say(player, brain["reply"])
             elif action in ("play", "search") and tracks:
                 player.stop()
                 enqueue_smart(player, lib, tracks)

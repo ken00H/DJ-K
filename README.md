@@ -15,6 +15,7 @@ DJ ▸ Jamal in the booth, we're turning this gym into a metal blast chamber! ..
 - **YouTube fallback** — anything not local resolves and streams via yt-dlp
 - **DJ persona** — LLM-powered radio-host banter between tracks
 - **DJ voice** — optional piper TTS speaks intros over ducked music (`DJ_TTS=0` to disable)
+- **AI track generation** — optional MusicGen hook: "make me a chill lo-fi beat" synthesizes a fresh track locally
 - **Crossfade** — volume-ramp blend on every track change (set `DJ_CROSSFADE=0` to disable)
 - **Pluggable AI** — llama.cpp → Ollama → OpenAI, tried in that order automatically
 
@@ -67,11 +68,25 @@ Anything else goes to the DJ brain.
 | `DJ_CROSSFADE` | `1` | `0` disables crossfade |
 | `DJ_TTS` | `1` | `0` disables the DJ voice |
 | `DJ_TTS_VOICE` | `~/.config/djjamal/voices/en_US-lessac-medium.onnx` | piper voice model |
+| `DJ_MUSICGEN` | `1` | `0` disables AI generation |
+| `DJ_GEN_PYTHON` | `~/.config/djjamal/gen-env/bin/python` | python of the generation venv |
 
 **DJ voice (optional):** `pip install --user --break-system-packages piper-tts`, then
 download a voice, e.g.
 `curl -L -o ~/.config/djjamal/voices/en_US-lessac-medium.onnx https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx`
 (+ the `.onnx.json` next to it). Without piper, the app silently skips TTS.
+
+**AI track generation (optional):** runs facebook/MusicGen-small in an isolated
+venv (the app itself stays stdlib-only; generation is a subprocess):
+```bash
+python3 -m venv ~/.config/djjamal/gen-env
+~/.config/djjamal/gen-env/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu
+~/.config/djjamal/gen-env/bin/pip install "transformers<5" scipy
+```
+Then just ask the DJ: "generate a chill lo-fi beat". First use downloads the
+model (~2.4 GB to `~/.cache/huggingface`). CPU synthesis takes minutes per
+clip — the DJ queues it in the background and tells you when it lands.
+Without the venv, generation is silently unavailable.
 
 Library cache lives at `~/.config/djjamal/library.json` (keyed to `DJ_MUSIC_DIR`, refreshed daily, or `/rescan`).
 

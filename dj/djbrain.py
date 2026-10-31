@@ -6,7 +6,7 @@ from . import library, llm
 
 SYSTEM = """You are DJ Jamal, a fun radio DJ personality managing the user's music.
 You control playback. ALWAYS reply with a single JSON object, no markdown fences:
-{"reply": "<DJ-style talk, 1-3 sentences, energetic>", "action": "<one of: play|queue|playlist|stop|chat|search>", "tracks": ["song/artist queries..."]}
+{"reply": "<DJ-style talk, 1-3 sentences, energetic>", "action": "<one of: play|queue|playlist|stop|chat|search|generate>", "tracks": ["song/artist queries..."]}
 Actions:
 - play: replace current playback with tracks (resolved local-first, then YouTube)
 - queue: add tracks after the current one
@@ -14,6 +14,9 @@ Actions:
 - stop: stop playback
 - chat: conversation only, tracks empty
 - search: you could not decide; treat like play
+- generate: synthesize NEW music with AI; tracks has exactly one element: a rich
+  English prompt describing the music (genre, instruments, mood, tempo).
+  Use only when the user asks you to create/make/generate music.
 Pick tracks from the local library when names match; otherwise invent good YouTube search queries.
 Keep replies short and fun. Use radio-DJ flavor, never more than 3 sentences."""
 
@@ -40,6 +43,6 @@ def _parse(raw):
         return {"reply": raw.strip(), "action": "chat", "tracks": []}
     d.setdefault("reply", "")
     d["action"] = d.get("action", "chat") if d.get("action") in (
-        "play", "queue", "playlist", "stop", "chat", "search") else "chat"
+        "play", "queue", "playlist", "stop", "chat", "search", "generate") else "chat"
     d["tracks"] = [str(t) for t in (d.get("tracks") or [])][:20]
     return d

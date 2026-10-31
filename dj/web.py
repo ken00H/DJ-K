@@ -8,7 +8,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dj import djbrain, library
-from dj.main import enqueue_smart
+from dj.main import enqueue_smart, generate_track
 from dj.player import Player
 
 INDEX_HTML = (Path(__file__).with_name("index.html")).read_text()
@@ -61,6 +61,8 @@ def make_handler(player, lib):
                 try:
                     if brain["action"] == "stop":
                         player.stop()
+                    elif brain["action"] == "generate" and brain["tracks"]:
+                        generate_track(player, brain["tracks"][0])  # status shows via queue
                     elif brain["action"] in ("play", "search", "queue", "playlist") and brain["tracks"]:
                         if brain["action"] in ("play", "search"):
                             player.stop()

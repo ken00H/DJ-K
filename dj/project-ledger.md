@@ -3,7 +3,7 @@
 ## Open (actively working)
 | Project | Next step | Last touched |
 |---------|-----------|--------------|
-| DJ Jamal (AI personal DJ) | TTS voice shipped; next: music-gen hook options | 2026-10-31 |
+| DJ Jamal (AI personal DJ) | music-gen shipped; next: Windows support | 2026-10-31 |
 
 ## Parked (interesting, paused ON PURPOSE)
 | Project | Reopen trigger | Closed? |

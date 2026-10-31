@@ -1,6 +1,7 @@
 """Smoke tests: pure logic only — no mpv, no audio, no network, no LLM."""
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -57,6 +58,34 @@ class BrainParse(unittest.TestCase):
     def test_non_string_tracks_coerced(self):
         d = djbrain._parse('{"reply": "hi", "action": "play", "tracks": [1, "a"]}')
         self.assertEqual(d["tracks"], ["1", "a"])
+
+    def test_generate_action_accepted(self):
+        d = djbrain._parse('{"reply": "on it", "action": "generate", "tracks": ["lo-fi beat"]}')
+        self.assertEqual(d["action"], "generate")
+        self.assertEqual(d["tracks"], ["lo-fi beat"])
+
+
+class MusicGen(unittest.TestCase):
+    def test_available_false_without_venv(self):
+        from dj import musicgen
+        with mock.patch.object(musicgen, "VENV_PY", Path("/no/such/python")):
+            self.assertFalse(musicgen.available())
+
+    def test_generate_prompt_sanitized_and_secs_clamped(self):
+        # generate() must sanitize before touching the subprocess; probe via a fake runner
+        from dj import musicgen
+        seen = {}
+
+        def fake_run(argv, **kw):
+            seen["prompt"] = argv[4]
+            seen["secs"] = argv[5]
+            raise subprocess.CalledProcessError(1, "py")  # fail fast
+
+        with mock.patch.object(musicgen, "VENV_PY", Path("/bin/true")), \
+             mock.patch.object(musicgen.subprocess, "run", fake_run):
+            musicgen.generate("  lo-fi\n  beat  ", secs=999)
+        self.assertEqual(seen["prompt"], "lo-fi beat")
+        self.assertEqual(seen["secs"], "30")
 
 
 class Library(unittest.TestCase):
