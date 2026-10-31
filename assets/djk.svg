@@ -1,14 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <!-- DJ-K app icon: headphones over a waveform, on the project's dark panel -->
-  <rect width="128" height="128" rx="28" fill="#17171d"/>
-  <rect x="4" y="4" width="120" height="120" rx="24" fill="none" stroke="#26262e" stroke-width="2"/>
+  <!-- DJ-K app icon: brand gradient tile, bold white headphones, bright waveform.
+       Designed to stay legible at 16-48px on dark themes. -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8b3fd4"/>
+      <stop offset="1" stop-color="#1fb6e0"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#tile)"/>
   <!-- headband -->
-  <path d="M32 78 V64 a32 32 0 0 1 64 0 V78" fill="none" stroke="#c26bff" stroke-width="9" stroke-linecap="round"/>
+  <path d="M30 80 V60 a34 34 0 0 1 68 0 V80" fill="none"
+        stroke="#ffffff" stroke-width="12" stroke-linecap="round"/>
   <!-- ear cups -->
-  <rect x="22" y="72" width="20" height="30" rx="9" fill="#c26bff"/>
-  <rect x="86" y="72" width="20" height="30" rx="9" fill="#c26bff"/>
-  <!-- waveform bars -->
-  <rect x="56"  y="96" width="4" height="12" rx="2" fill="#38d0ff"/>
-  <rect x="64"  y="88" width="4" height="20" rx="2" fill="#38d0ff"/>
-  <rect x="72"  y="96" width="4" height="12" rx="2" fill="#38d0ff"/>
+  <rect x="18" y="72" width="24" height="34" rx="11" fill="#ffffff"/>
+  <rect x="86" y="72" width="24" height="34" rx="11" fill="#ffffff"/>
+  <!-- waveform -->
+  <rect x="55"  y="100" width="5" height="16" rx="2.5" fill="#0e0e12" fill-opacity="0.85"/>
+  <rect x="63.5" y="90" width="5" height="26" rx="2.5" fill="#0e0e12" fill-opacity="0.85"/>
+  <rect x="72"  y="100" width="5" height="16" rx="2.5" fill="#0e0e12" fill-opacity="0.85"/>
 </svg>

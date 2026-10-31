@@ -2,6 +2,7 @@
 import json
 import os
 import sys
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -116,6 +117,9 @@ def make_handler(player, lib):
                     player.volume(int(data.get("value", 100)))
                 elif cmd == "seek":
                     player.seek(float(data.get("value", 0)))
+                elif cmd == "quit":
+                    player.stop()  # kill mpv now; exit after the reply flushes
+                    threading.Timer(0.5, os._exit, (0,)).start()
                 else:
                     {"skip": player.skip, "pause": player.pause,
                      "stop": player.stop}.get(cmd, lambda: None)()

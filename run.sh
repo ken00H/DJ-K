@@ -11,6 +11,13 @@ case "${1:-}" in
   install-desktop)
     mkdir -p ~/.local/share/icons/hicolor/scalable/apps ~/.local/share/applications
     cp assets/djk.svg ~/.local/share/icons/hicolor/scalable/apps/djk.svg
+    # PNG fallbacks — some contexts render SVG icons poorly or not at all
+    for s in 512 256 128 64 48 32 16; do
+      if [ -f "assets/icons/djk-$s.png" ]; then
+        mkdir -p ~/.local/share/icons/hicolor/${s}x${s}/apps
+        cp "assets/icons/djk-$s.png" ~/.local/share/icons/hicolor/${s}x${s}/apps/djk.png
+      fi
+    done
     printf '%s\n' \
       '[Desktop Entry]' \
       'Type=Application' \
@@ -22,6 +29,8 @@ case "${1:-}" in
       'Categories=AudioVideo;Audio;Player;' \
       > ~/.local/share/applications/djk.desktop
     command -v desktop-file-validate >/dev/null && desktop-file-validate ~/.local/share/applications/djk.desktop
-    echo "installed: app-grid entry 'DJ-K' + icon" ;;
+    command -v gtk-update-icon-cache >/dev/null && gtk-update-icon-cache -q -t -f ~/.local/share/icons/hicolor 2>/dev/null
+    command -v update-desktop-database >/dev/null && update-desktop-database -q ~/.local/share/applications 2>/dev/null
+    echo "installed: app-grid entry 'DJ-K' + icon (SVG + PNG sizes)" ;;
   *)        exec python3 dj/main.py ;;
 esac

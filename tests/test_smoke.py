@@ -286,14 +286,17 @@ class SourceToggles(unittest.TestCase):
             def enqueue(self, src, title=""):
                 self.q.append((src, title))
 
-        # local off -> local hit skipped, falls to YouTube
+        # local off -> local hit skipped, falls to YouTube (mocked — no network)
         p = FakePlayer()
         with mock.patch.object(self.settings, "source_local", lambda: False), \
-             mock.patch.object(self.settings, "source_youtube", lambda: True):
+             mock.patch.object(self.settings, "source_youtube", lambda: True), \
+             mock.patch("dj.mpvproc.resolve_youtube",
+                        return_value=("https://resolved/audio", "a")):
             enqueue_smart(p, lib, ["a", "zzz no such song"])
         assert_sources = [s for s, _ in p.q]
         self.assertNotIn("/x/a.mp3", assert_sources)
-        self.assertTrue(any(s.startswith(("ytq:", "https://")) for s in assert_sources), p.q)
+        self.assertIn("https://resolved/audio", assert_sources)   # first resolved now
+        self.assertIn(("ytq:zzz no such song", "zzz no such song"), p.q)  # rest deferred
 
         # youtube off -> non-local queries skipped entirely
         p2 = FakePlayer()

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>DJ-K</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Crect width='128' height='128' rx='28' fill='%2317171d'/%3E%3Cpath d='M32 78 V64 a32 32 0 0 1 64 0 V78' fill='none' stroke='%23c26bff' stroke-width='9' stroke-linecap='round'/%3E%3Crect x='22' y='72' width='20' height='30' rx='9' fill='%23c26bff'/%3E%3Crect x='86' y='72' width='20' height='30' rx='9' fill='%23c26bff'/%3E%3Crect x='56' y='96' width='4' height='12' rx='2' fill='%2338d0ff'/%3E%3Crect x='64' y='88' width='4' height='20' rx='2' fill='%2338d0ff'/%3E%3Crect x='72' y='96' width='4' height='12' rx='2' fill='%2338d0ff'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Cdefs%3E%3ClinearGradient id='t' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%238b3fd4'/%3E%3Cstop offset='1' stop-color='%231fb6e0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='128' height='128' rx='28' fill='url(%23t)'/%3E%3Cpath d='M30 80 V60 a34 34 0 0 1 68 0 V80' fill='none' stroke='%23fff' stroke-width='12' stroke-linecap='round'/%3E%3Crect x='18' y='72' width='24' height='34' rx='11' fill='%23fff'/%3E%3Crect x='86' y='72' width='24' height='34' rx='11' fill='%23fff'/%3E%3Crect x='55' y='100' width='5' height='16' rx='2.5' fill='%230e0e12' fill-opacity='.85'/%3E%3Crect x='63.5' y='90' width='5' height='26' rx='2.5' fill='%230e0e12' fill-opacity='.85'/%3E%3Crect x='72' y='100' width='5' height='16' rx='2.5' fill='%230e0e12' fill-opacity='.85'/%3E%3C/svg%3E">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --bg:#0e0e12; --panel:#17171d; --accent:#c26bff; --accent2:#38d0ff; --dim:#8a8a95; --line:#26262e; }
@@ -22,6 +22,10 @@
   #gear { padding:6px; line-height:0; }
   #gear svg { width:20px; height:20px; fill:#eee; }
   #gear:hover svg { fill:var(--accent); }
+  #power { color:#ff6b6b; padding:8px 12px; }
+  #power:hover { background:#3d2226; }
+  #dead { display:none; flex:1; align-items:center; justify-content:center;
+          color:var(--dim); font-size:1.05rem; flex-direction:column; gap:8px; }
   button { background:#26262e; color:#eee; border:0; border-radius:8px;
            padding:8px 14px; cursor:pointer; font-size:.95rem; }
   button:hover { background:#33333d; }
@@ -104,13 +108,14 @@
 <body>
 <header>
   <div class="eq"><span></span><span></span><span></span></div>
-  <svg id="emblem" viewBox="0 0 128 128" aria-hidden="true"><rect width="128" height="128" rx="28" fill="#17171d"/><path d="M32 78 V64 a32 32 0 0 1 64 0 V78" fill="none" stroke="#c26bff" stroke-width="9" stroke-linecap="round"/><rect x="22" y="72" width="20" height="30" rx="9" fill="#c26bff"/><rect x="86" y="72" width="20" height="30" rx="9" fill="#c26bff"/><rect x="56" y="96" width="4" height="12" rx="2" fill="#38d0ff"/><rect x="64" y="88" width="4" height="20" rx="2" fill="#38d0ff"/><rect x="72" y="96" width="4" height="12" rx="2" fill="#38d0ff"/></svg>
+  <svg id="emblem" viewBox="0 0 128 128" aria-hidden="true"><defs><linearGradient id="t2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8b3fd4"/><stop offset="1" stop-color="#1fb6e0"/></linearGradient></defs><rect width="128" height="128" rx="28" fill="url(#t2)"/><path d="M30 80 V60 a34 34 0 0 1 68 0 V80" fill="none" stroke="#fff" stroke-width="12" stroke-linecap="round"/><rect x="18" y="72" width="24" height="34" rx="11" fill="#fff"/><rect x="86" y="72" width="24" height="34" rx="11" fill="#fff"/><rect x="55" y="100" width="5" height="16" rx="2.5" fill="#0e0e12" fill-opacity=".85"/><rect x="63.5" y="90" width="5" height="26" rx="2.5" fill="#0e0e12" fill-opacity=".85"/><rect x="72" y="100" width="5" height="16" rx="2.5" fill="#0e0e12" fill-opacity=".85"/></svg>
   <h1>DJ-K</h1>
   <div id="controls">
     <input type="range" id="vol" min="0" max="100" value="100" title="volume">
     <button data-cmd="skip">⏭ skip</button>
     <button data-cmd="pause">⏸ pause</button>
     <button data-cmd="stop">⏹ stop</button>
+    <button id="power" title="shut down DJ-K">⏻</button>
     <button id="gear" title="settings"><svg viewBox="0 0 24 24"><path d="M19.14 12.94a7.5 7.5 0 0 0 .06-.94 7.5 7.5 0 0 0-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.3 7.3 0 0 0-1.62-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.58.24-1.12.55-1.62.94l-2.39-.96a.5.5 0 0 0-.6.22L2.67 8.84a.5.5 0 0 0 .12.64l2.03 1.58a7.5 7.5 0 0 0 0 1.88l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.31.6.22l2.39-.96c.5.39 1.04.7 1.62.94l.36 2.54c.04.24.25.42.5.42h3.84c.25 0 .46-.18.5-.42l.36-2.54a7.3 7.3 0 0 0 1.62-.94l2.39.96c.21.09.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/></svg></button>
   </div>
 </header>
@@ -122,6 +127,7 @@
 </div>
 <div id="main">
   <div id="chat"></div>
+  <div id="dead"></div>
   <div id="side">
     <h2>Queue</h2>
     <div id="queue"></div>
@@ -266,8 +272,25 @@ $('s_save').onclick = async () => {
     : ('error: ' + r.error);
 };
 
+let dead = false;
+document.getElementById('power').onclick = async () => {
+  if (!confirm('Shut down DJ-K?')) return;
+  try { await post('/api/cmd', {cmd:'quit'}); } catch {}
+  dead = true;
+  document.getElementById('f').style.display = 'none';
+  document.getElementById('side').style.display = 'none';
+  document.getElementById('chat').style.display = 'none';
+  document.getElementById('now').style.visibility = 'hidden';
+  document.querySelectorAll('#controls button, #vol').forEach(el => el.disabled = true);
+  const d = document.getElementById('dead');
+  d.style.display = 'flex';
+  d.innerHTML = '⏻ DJ-K has shut down.<br>Restart with <code>./run.sh web</code> or the app-grid entry.';
+  document.title = 'DJ-K — shut down';
+};
+
 // --- state poll ---
 const poll = async () => {
+  if (dead) return;
   try {
     const s = await (await fetch('/api/state')).json();
     now.textContent = s.playing ? '♪ ' + (s.current || '') :

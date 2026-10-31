@@ -64,8 +64,8 @@ run.bat web       # web UI (Windows)
 ```
 
 Web UI: dark page with chat box, now-playing bar (title, BPM badge, seek bar),
-skip/pause/stop buttons, volume slider, live queue panel, and a searchable
-library browser (click a track to queue it, ▶ to play it now).
+skip/pause/stop + quit buttons, volume slider, settings (gear), live queue panel,
+and a searchable library browser (click a track to queue it, ▶ to play it now).
 Stdlib-only server (no FastAPI/Flask); binds to `127.0.0.1` only.
 Port configurable via `DJ_WEB_PORT`.
 

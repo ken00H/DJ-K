@@ -3,6 +3,14 @@
 All notable changes to DJ Jamal are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [unreleased]
+
+### Added
+- Web UI quit button (⏻): confirm dialog → stops playback and shuts DJ-K down cleanly from the page; the page switches to a shut-down state instead of spamming a dead server
+
+### Fixed
+- App icon actually fixed this time: bright purple→cyan gradient tile with bold white headphones (the v0.8 icon was near-black and near-invisible on dark themes); favicon and web header emblem match; PNG fallbacks at 512–16px installed alongside the SVG, with icon/desktop cache refresh in `install-desktop`
+
 ## [0.9.1] — 2026-11-01
 
 ### Added
