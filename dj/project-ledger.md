@@ -3,7 +3,7 @@
 ## Open (actively working)
 | Project | Next step | Last touched |
 |---------|-----------|--------------|
-| DJ-K (AI personal DJ) | full audit-fix round landed (P0 tray crash, CSRF, pause state, UI polish) — user review + commit pending | 2026-11-01 |
+| DJ-K (AI personal DJ) | audit round 2 committed f5a14a6 (CI green); idle — candidates: beat-phase, voice input, README screenshots refresh | 2026-11-01 |
 
 ## Parked (interesting, paused ON PURPOSE)
 | Project | Reopen trigger | Closed? |
@@ -27,3 +27,4 @@
 - DJ-K v0.9.0: settings UI (live playback toggles + AI backend/URLs/key mgmt, env-over-file precedence) + full logo/wordmark/favicon; API + UI verified live
 - DJ-K v0.9.1: per-source toggles (local/YouTube live, MPRIS/tray restart) — verified the reroute live (local off → Sabaton played from googlevideo.com)
 - DJ-K unreleased: web quit button + icon redesign committed; second full audit fixed (P0 no-gi startup crash, POST CSRF, mpv-missing queue death, invisible pause state, TTS wav leak, volume-stomp) + web UI floor polish (tokens/focus/motion/SVG icons/mobile)
+- DJ-K v0.9.2 released: quit button + icon fix + full audit-hardening round (f5a14a6), fresh README screenshots; 50 tests, 3-OS CI green
