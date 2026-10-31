@@ -1,12 +1,24 @@
 # 🎧 DJ Jamal
 
-A personal AI DJ for the terminal. Talk to it in plain language — it picks the music, plays it, talks like a radio DJ, and crossfades between tracks.
+[![CI](https://github.com/ken00H/DJ-K/actions/workflows/ci.yml/badge.svg)](https://github.com/ken00H/DJ-K/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/ken00H/DJ-K?color=c26bff)](https://github.com/ken00H/DJ-K/releases)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-38d0ff)](https://www.python.org/)
+[![No dependencies](https://img.shields.io/badge/stdlib-only-8a8a95)](https://docs.python.org/3/library/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
+A personal AI DJ. Talk to it in plain language — it picks the music, plays it,
+talks like a radio DJ, beatmatches transitions, and can even generate its own tracks.
 
 ```
 you ▸ gimme a metal playlist for the gym
 DJ ▸ Jamal in the booth, we're turning this gym into a metal blast chamber! ...
 ♪ now playing: Avenged Sevenfold - Nightmare
 ```
+
+![DJ Jamal web UI](assets/webui.png)
+
+*The web UI — chat with the DJ, live queue, searchable library, seek/volume,
+BPM badge. The same brain also runs as a terminal REPL.*
 
 ## Features
 
@@ -129,7 +141,8 @@ you ─► main.py (REPL) ─► djbrain.py ─► llm.py (llama.cpp → Ollama 
   the first query resolves immediately so music starts fast, the rest queue
   as deferred queries and resolve when they reach the deck
 - LLM requests are pinned to loopback or `api.openai.com` — nothing else
-- Crossfade overlaps two mpv processes with volume ramps (no beatmatching yet)
+- Crossfade overlaps two mpv processes with volume ramps; beatmatch adds
+  pitch-preserved tempo matching on top (see `beatmatch.py`)
 
 ## Files
 
@@ -140,11 +153,18 @@ you ─► main.py (REPL) ─► djbrain.py ─► llm.py (llama.cpp → Ollama 
 | `djbrain.py` | DJ persona prompt, JSON action parsing |
 | `llm.py` | provider chain: llama.cpp / Ollama / OpenAI |
 | `library.py` | scan + cache + fuzzy search of music folder |
-| `player.py` | queue, mpv IPC control, crossfade |
+| `player.py` | queue, mpv IPC control, crossfade, volume/seek/status |
 | `mpvproc.py` | mpv launch (validated sources) + YouTube URL resolution |
+| `tts.py` | optional DJ voice (piper subprocess) |
+| `musicgen.py` | optional AI track generation (MusicGen venv subprocess) |
+| `beatmatch.py` | optional BPM detection + tempo matching (librosa venv subprocess) |
 | `project-ledger.md` | project status ledger |
 
 ## Roadmap ideas
 
 - Beat-phase alignment (start transitions exactly on the beat — needs beat-grid data, not just BPM)
 - Voice input (speech-to-text DJ requests)
+
+## License
+
+[MIT](LICENSE) — © ken00H

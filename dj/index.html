@@ -152,6 +152,11 @@ libEl.onclick = e => {
 };
 $('libsearch').oninput = e => renderLib(e.target.value);
 fetch('/api/library').then(r => r.json()).then(t => { LIB = t; renderLib(''); });
+fetch('/api/history').then(r => r.json()).then(h => {
+  for (const m of h || [])
+    add(m.role === 'user' ? 'you' : 'dj',
+        m.role === 'user' ? esc(m.content) : '<b>DJ ▸</b> ' + esc(m.content));
+});
 
 // --- state poll ---
 const poll = async () => {

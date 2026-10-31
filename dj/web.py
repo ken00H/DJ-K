@@ -47,6 +47,8 @@ def make_handler(player, lib):
                 self._json(player.status())
             elif self.path == "/api/library":
                 self._json([{"name": t["name"], "path": t["path"]} for t in lib])
+            elif self.path == "/api/history":
+                self._json(HISTORY)
             else:
                 self.send_error(404)
 

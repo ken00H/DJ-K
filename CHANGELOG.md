@@ -3,6 +3,12 @@
 All notable changes to DJ Jamal are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.7.2] — 2026-11-01
+
+### Added
+- Web chat history persists across page reloads (`/api/history` + render on load)
+- README: badge header, live web-UI screenshot (`assets/webui.png`), LICENSE section; MIT `LICENSE` file added
+
 ## [0.7.1] — 2026-11-01
 
 ### Fixed (hardening sweep — closes the original audit's improvement list)
