@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+.v2c/
+out/
+.zcode/
