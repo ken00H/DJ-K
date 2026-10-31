@@ -3,6 +3,16 @@
 All notable changes to DJ Jamal are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.7.0] — 2026-11-01
+
+### Added
+- Web UI upgrade: live queue panel, searchable library browser (click to queue, ▶ to play), volume slider, seek bar with time display, BPM badge on the now-playing bar; library panel hidden on narrow screens
+- Player: `volume()` get/set, `seek()`, `status()` (volume/pos/duration/bpm); `_ipc_query()` reads mpv IPC responses (both POSIX sockets and Windows named pipes)
+- API: `/api/library` (track list), `/api/track` (play/queue by path — library-membership-checked), `volume`/`seek` commands on `/api/cmd`
+
+### Verified live
+- Play-by-path, volume set (100→42 reported back), seek (pos jumped to 31.8s), BPM badge (143.6), out-of-library path rejected with 400
+
 ## [0.6.0] — 2026-11-01
 
 ### Added

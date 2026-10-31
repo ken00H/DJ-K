@@ -41,7 +41,9 @@ run.bat           # terminal REPL (Windows)
 run.bat web       # web UI (Windows)
 ```
 
-Web UI: dark page with chat box, now-playing bar, skip/pause/stop buttons.
+Web UI: dark page with chat box, now-playing bar (title, BPM badge, seek bar),
+skip/pause/stop buttons, volume slider, live queue panel, and a searchable
+library browser (click a track to queue it, ▶ to play it now).
 Stdlib-only server (no FastAPI/Flask); binds to `127.0.0.1` only.
 Port configurable via `DJ_WEB_PORT`.
 
@@ -145,5 +147,4 @@ you ─► main.py (REPL) ─► djbrain.py ─► llm.py (llama.cpp → Ollama 
 ## Roadmap ideas
 
 - Beat-phase alignment (start transitions exactly on the beat — needs beat-grid data, not just BPM)
-- Web UI upgrade: queue view, volume slider, library browser, seek
 - Voice input (speech-to-text DJ requests)

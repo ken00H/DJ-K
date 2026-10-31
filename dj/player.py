@@ -47,6 +47,32 @@ class Player:
             pass
 
     @staticmethod
+    def _ipc_query(sock, cmd, timeout=1.0):
+        """Send a command and read one JSON response line, or None."""
+        if not sock:
+            return None
+        try:
+            if WINDOWS:
+                with open(sock, "r+b", buffering=0) as f:
+                    f.write(json.dumps({"command": cmd}).encode() + b"\n")
+                    data = f.readline()
+            else:
+                s = socket.socket(socket.AF_UNIX)
+                s.settimeout(timeout)
+                s.connect(sock)
+                s.send(json.dumps({"command": cmd}).encode() + b"\n")
+                data = b""
+                while not data.endswith(b"\n"):
+                    chunk = s.recv(4096)
+                    if not chunk:
+                        break
+                    data += chunk
+                s.close()
+            return json.loads(data.split(b"\n")[0])
+        except (OSError, ValueError):
+            return None
+
+    @staticmethod
     def _sock_ready(sock):
         """True once mpv is listening. POSIX: socket file exists. Windows:
         named pipe accepts a connection (os.path.exists is unreliable there)."""
@@ -149,6 +175,36 @@ class Player:
 
     def pause(self):
         self._ipc(self.sock_path, ["cycle", "pause"])
+
+    def volume(self, vol=None):
+        """Set volume (0-100) when given; return current volume or None."""
+        if vol is not None:
+            self._ipc(self.sock_path, ["set_property", "volume",
+                                       max(0, min(100, int(vol)))])
+            return None
+        r = self._ipc_query(self.sock_path, ["get_property", "volume"])
+        return r.get("data") if r and r.get("error") == "success" else None
+
+    def seek(self, pos):
+        if pos is not None:
+            self._ipc(self.sock_path, ["set_property", "time-pos",
+                                       max(0.0, float(pos))])
+
+    def status(self):
+        """Rich state for UIs: adds volume/position/duration/bpm to the basics."""
+        r = self._ipc_query(self.sock_path, ["get_property", "time-pos"])
+        pos = r.get("data") if r and r.get("error") == "success" else None
+        r = self._ipc_query(self.sock_path, ["get_property", "duration"])
+        dur = r.get("data") if r and r.get("error") == "success" else None
+        bpm = beatmatch.cached_bpm(self.current_source) \
+            if self.current_source and os.path.isfile(self.current_source) else None
+        return {"current": self.current,
+                "playing": self._playing(),
+                "queue": [t for _, t in self.queue],
+                "volume": self.volume(),
+                "pos": pos,
+                "duration": dur,
+                "bpm": round(bpm, 1) if bpm else None}
 
     def duck(self, on):
         """Duck music volume to 25% (on=True) / back to 100% — used while the

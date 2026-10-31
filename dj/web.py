@@ -37,9 +37,9 @@ def make_handler(player, lib):
                 self.end_headers()
                 self.wfile.write(body)
             elif self.path == "/api/state":
-                self._json({"current": player.current,
-                            "playing": player._playing(),
-                            "queue": [t for _, t in player.queue]})
+                self._json(player.status())
+            elif self.path == "/api/library":
+                self._json([{"name": t["name"], "path": t["path"]} for t in lib])
             else:
                 self.send_error(404)
 
@@ -73,8 +73,27 @@ def make_handler(player, lib):
 
             if self.path == "/api/cmd":
                 cmd = data.get("cmd")
-                {"skip": player.skip, "pause": player.pause,
-                 "stop": player.stop}.get(cmd, lambda: None)()
+                if cmd == "volume":
+                    player.volume(int(data.get("value", 100)))
+                elif cmd == "seek":
+                    player.seek(float(data.get("value", 0)))
+                else:
+                    {"skip": player.skip, "pause": player.pause,
+                     "stop": player.stop}.get(cmd, lambda: None)()
+                return self._json({"ok": True})
+
+            if self.path == "/api/track":
+                # play/queue a specific library track by path (validated in player)
+                path = str(data.get("path", ""))
+                mode = data.get("mode", "queue")
+                if path not in {t["path"] for t in lib}:
+                    return self._json({"error": "not in library"}, 400)
+                try:
+                    if mode == "play":
+                        player.stop()
+                    player.enqueue(path, next(t["name"] for t in lib if t["path"] == path))
+                except ValueError as e:
+                    return self._json({"error": str(e)}, 400)
                 return self._json({"ok": True})
 
             self.send_error(404)
