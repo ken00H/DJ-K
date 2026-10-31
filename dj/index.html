@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>DJ Jamal</title>
+<title>DJ-K</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --bg:#0e0e12; --panel:#17171d; --accent:#c26bff; --accent2:#38d0ff; --dim:#8a8a95; --line:#26262e; }
@@ -69,7 +69,7 @@
 <body>
 <header>
   <div class="eq"><span></span><span></span><span></span></div>
-  <h1>DJ Jamal</h1>
+  <h1>DJ-K</h1>
   <div id="controls">
     <input type="range" id="vol" min="0" max="100" value="100" title="volume">
     <button data-cmd="skip">⏭ skip</button>
@@ -164,7 +164,7 @@ const poll = async () => {
     const s = await (await fetch('/api/state')).json();
     now.textContent = s.playing ? '♪ ' + (s.current || '') :
       (s.queue.length ? `♪ next up: ${s.queue[0]}` : '♪ —');
-    document.title = s.playing ? '▶ ' + (s.current||'DJ Jamal') : 'DJ Jamal';
+    document.title = s.playing ? '▶ ' + (s.current||'DJ-K') : 'DJ-K';
     if (s.bpm) { bpmEl.hidden = false; bpmEl.textContent = s.bpm + ' BPM'; }
     else bpmEl.hidden = true;
     if (s.volume != null && s.volume !== lastVol) { volEl.value = lastVol = s.volume; }

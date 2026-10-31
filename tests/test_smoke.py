@@ -205,5 +205,20 @@ class LLMURLGuard(unittest.TestCase):
             self.assertRaises(ValueError, llm._assert_safe, url)
 
 
+class MPRIS(unittest.TestCase):
+    def test_playback_status_mapping(self):
+        from dj import mpris
+        self.assertEqual(mpris.playback_status(True), "Playing")
+        self.assertEqual(mpris.playback_status(False), "Stopped")
+
+    def test_metadata_builder(self):
+        from dj import mpris
+        d = mpris.metadata_for("Nightmare")
+        self.assertEqual(d["xesam:title"], "Nightmare")
+        self.assertEqual(d["xesam:artist"], ["DJ-K"])
+        # empty title still shows a sane label
+        self.assertEqual(mpris.metadata_for(None)["xesam:title"], "DJ-K")
+
+
 if __name__ == "__main__":
     unittest.main()

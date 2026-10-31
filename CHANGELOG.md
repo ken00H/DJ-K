@@ -3,6 +3,19 @@
 All notable changes to DJ Jamal are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.8.0] — 2026-11-01
+
+### Changed
+- Rebrand: the product and on-air persona are now **DJ-K** everywhere user-visible (README, REPL banner, web UI, brain persona, launchers). Internal identifiers (`dj/` package, `DJ_*` env vars, `~/.config/djjamal/`) unchanged by design.
+
+### Added
+- Desktop presence (Linux): MPRIS registration (`org.mpris.MediaPlayer2.djk`) — media controls show track title and prev/play/next that control playback for real; tray icon via AppIndicator/Ayatana with Skip/Play-Pause/Stop/Quit; `run.sh desktop` and `run.sh install-desktop` modes (icon + app-grid entry)
+- New modules: `dj/mpris.py`, `dj/tray.py`, `dj/glibloop.py` (shared GLib loop thread); all optional, zero pip installs (system `python3-gi`), silent no-ops where unsupported
+- `assets/djk.svg` app icon; 2 new tests (31 total)
+
+### Verified live
+- MPRIS `PlaybackStatus=Playing`, `Metadata` title matches the playing track; a D-Bus `Next` call advanced the real queue (crossfade) — checked next to Rhythmbox's own registration
+
 ## [0.7.2] — 2026-11-01
 
 ### Added

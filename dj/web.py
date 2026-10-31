@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from dj import djbrain, library
+from dj import djbrain, library, mpris, tray
 from dj.main import enqueue_smart, generate_track
 from dj.player import Player
 
@@ -118,7 +118,9 @@ def make_handler(player, lib):
 def serve(port=int(os.environ.get("DJ_WEB_PORT", "8090"))):
     lib = library.scan()
     player = Player()
-    print(f"🎧 DJ Jamal web UI → http://127.0.0.1:{port}")
+    mpris.start(player)  # desktop presence: media controls (no-op if no gi)
+    tray.start(player, str(Path(__file__).resolve().parent.parent / "assets" / "djk.svg"))
+    print(f"🎧 DJ-K web UI → http://127.0.0.1:{port}")
     ThreadingHTTPServer(("127.0.0.1", port), make_handler(player, lib)).serve_forever()
 
 

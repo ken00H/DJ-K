@@ -1,4 +1,4 @@
-# 🎧 DJ Jamal
+# 🎧 DJ-K
 
 [![CI](https://github.com/ken00H/DJ-K/actions/workflows/ci.yml/badge.svg)](https://github.com/ken00H/DJ-K/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/ken00H/DJ-K?color=c26bff)](https://github.com/ken00H/DJ-K/releases)
@@ -11,13 +11,13 @@ talks like a radio DJ, beatmatches transitions, and can even generate its own tr
 
 ```
 you ▸ gimme a metal playlist for the gym
-DJ ▸ Jamal in the booth, we're turning this gym into a metal blast chamber! ...
+DJ ▸ K in the booth, we're turning this gym into a metal blast chamber! ...
 ♪ now playing: Avenged Sevenfold - Nightmare
 ```
 
-![DJ Jamal web UI](assets/webui.png)
+![DJ-K web UI](assets/webui.png)
 
-*The web UI — chat with the DJ, live queue, searchable library, seek/volume,
+*The DJ-K web UI — chat with the DJ, live queue, searchable library, seek/volume,
 BPM badge. The same brain also runs as a terminal REPL.*
 
 ## Features
@@ -78,6 +78,21 @@ Then just talk. Commands:
 | `/quit` | exit |
 
 Anything else goes to the DJ brain.
+
+## Desktop integration (Linux)
+
+DJ-K is visible on the desktop, not a silent background process:
+
+- **Media controls** — registers as an MPRIS player (`org.mpris.MediaPlayer2.djk`),
+  so GNOME/KDE media controls show DJ-K with the track title and prev/play/next
+  buttons, just like Rhythmbox. Buttons control playback for real.
+- **Tray icon** — status-notifier icon with Skip / Play-Pause / Stop / Quit
+  (needs `python3-gi` with AppIndicator/Ayatana, standard on Ubuntu).
+- **App-grid entry** — `./run.sh install-desktop` installs the icon +
+  a "DJ-K" application entry; launching it starts the web UI and opens it.
+
+One-time setup: `sudo apt install python3-gi` (preinstalled on Ubuntu GNOME).
+Everything is optional and silently off where unsupported (Windows, CI, headless).
 
 ## Configuration (environment variables)
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DJ Jamal — AI personal DJ. Chat REPL that plays music via mpv."""
+"""DJ-K — personal AI DJ. Chat REPL that plays music via mpv."""
 import os
 import sys
 
@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import threading
 
-from dj import djbrain, library, mpvproc, musicgen, tts
+from dj import djbrain, library, mpris, mpvproc, musicgen, tray, tts
 from dj.player import Player
 
 BOLD, CYAN, MAGENTA, DIM, RESET = "\033[1m", "\033[36m", "\033[35m", "\033[2m", "\033[0m"
@@ -87,13 +87,16 @@ def main():
     if os.name == "nt":
         os.system("")  # enables ANSI escape processing in Windows terminals
     lib = library.scan()
-    print(f"{MAGENTA}🎧 DJ Jamal{RESET} — {len(lib)} local tracks in {library.MUSIC_DIR}")
+    print(f"{MAGENTA}🎧 DJ-K{RESET} — {len(lib)} local tracks in {library.MUSIC_DIR}")
     print(f"{DIM}Commands: /skip /pause /stop /queue /list /rescan /quit — or just talk.{RESET}")
 
     def on_start(title):
         print(f"{CYAN}♪ now playing: {title}{RESET}")
 
     player = Player(on_track_start=on_start)
+    mpris.start(player)  # desktop presence: media controls (no-op if no gi)
+    tray.start(player, os.path.join(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))), "assets", "djk.svg"))
     history = []
 
     while True:
