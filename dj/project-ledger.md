@@ -3,7 +3,7 @@
 ## Open (actively working)
 | Project | Next step | Last touched |
 |---------|-----------|--------------|
-| DJ Jamal (AI personal DJ) | music-gen shipped; next: Windows support | 2026-10-31 |
+| DJ Jamal (AI personal DJ) | Windows support shipped (CI-verified); remaining: beatmatch | 2026-10-31 |
 
 ## Parked (interesting, paused ON PURPOSE)
 | Project | Reopen trigger | Closed? |
@@ -18,3 +18,5 @@
 - DJ Jamal v0.2 shipped: web UI (stdlib server + dark page), run.sh web mode
 - DJ Jamal v0.2.1: full audit — fixed skip-on-last-track, stale cache on dir switch, enqueue race, dead-mpv now-playing lie, YouTube URL expiry (deferred `ytq:` resolve)
 - DJ Jamal v0.3.0: full playback verified live on real stack; DJ voice (piper TTS over ducked music) shipped
+- DJ Jamal v0.4.0: AI track generation (MusicGen-small, isolated venv, ~7 min/clip on CPU)
+- DJ Jamal v0.5.0: Windows support — named-pipe mpv IPC, run.bat, windows-latest CI green; real-desktop Windows run still pending
