@@ -5,6 +5,8 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [unreleased]
 
+## [0.9.2] — 2026-11-01
+
 ### Added
 - Web UI quit button (⏻): confirm dialog → stops playback and shuts DJ-K down cleanly from the page; the page switches to a shut-down state instead of spamming a dead server
 - Web UI: pause button reflects real state (pause ↔ resume from the poll), library rescan button (`POST /api/rescan`), track/API errors surface as status lines in chat, dead screen when the backend stops responding (3 failed polls)
