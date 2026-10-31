@@ -3,7 +3,7 @@ python3-gi with AppIndicator3 (Ubuntu GNOME ships the shell side via
 ubuntu-appindicators). Silent no-op when unavailable."""
 import os
 
-from . import glibloop, mpris  # same availability base: gi + session bus
+from . import glibloop, mpris, settings  # mpris shares the gi + session-bus base
 
 
 def _indicator_module():
@@ -20,7 +20,7 @@ def _indicator_module():
 
 
 def available():
-    return mpris.available() and _indicator_module() is not None
+    return settings.tray() and mpris.available() and _indicator_module() is not None
 
 
 def start(player, icon_path):

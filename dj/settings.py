@@ -17,6 +17,10 @@ SCHEMA = {
     "tts":          ("DJ_TTS", "1", bool, True),
     "beatmatch":    ("DJ_BEATMATCH", "1", bool, True),
     "musicgen":     ("DJ_MUSICGEN", "1", bool, True),
+    "source_local": ("DJ_SOURCE_LOCAL", "1", bool, True),
+    "source_youtube": ("DJ_SOURCE_YOUTUBE", "1", bool, True),
+    "mpris":        ("DJ_MPRIS", "1", bool, False),
+    "tray":         ("DJ_TRAY", "1", bool, False),
     "provider":     ("DJ_PROVIDER", "auto", str, False),
     "llamacpp_url": ("DJ_LLAMACPP_URL", "http://127.0.0.1:8080", str, False),
     "ollama_url":   ("OLLAMA_URL", "http://localhost:11434", str, False),
@@ -103,3 +107,19 @@ def beatmatch():
 
 def musicgen():
     return resolve("musicgen")
+
+
+def source_local():
+    return resolve("source_local")
+
+
+def source_youtube():
+    return resolve("source_youtube")
+
+
+def mpris():
+    return resolve("mpris")
+
+
+def tray():
+    return resolve("tray")

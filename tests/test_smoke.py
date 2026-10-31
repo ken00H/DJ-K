@@ -263,6 +263,70 @@ class Settings(unittest.TestCase):
     def test_restart_keys_marked(self):
         self.assertIn("provider", self.s.RESTART_KEYS)
         self.assertNotIn("crossfade", self.s.RESTART_KEYS)
+        self.assertIn("mpris", self.s.RESTART_KEYS)
+        self.assertNotIn("source_local", self.s.RESTART_KEYS)
+
+
+class SourceToggles(unittest.TestCase):
+    def setUp(self):
+        from dj import settings
+        self.settings = settings
+
+    def test_source_toggles_live(self):
+        self.assertTrue(self.settings.source_local())
+        self.assertTrue(self.settings.source_youtube())
+
+    def test_enqueue_smart_respects_sources(self):
+        from dj.main import enqueue_smart
+        lib = [{"path": "/x/a.mp3", "name": "a"}]
+
+        class FakePlayer:
+            def __init__(self):
+                self.q = []
+            def enqueue(self, src, title=""):
+                self.q.append((src, title))
+
+        # local off -> local hit skipped, falls to YouTube
+        p = FakePlayer()
+        with mock.patch.object(self.settings, "source_local", lambda: False), \
+             mock.patch.object(self.settings, "source_youtube", lambda: True):
+            enqueue_smart(p, lib, ["a", "zzz no such song"])
+        assert_sources = [s for s, _ in p.q]
+        self.assertNotIn("/x/a.mp3", assert_sources)
+        self.assertTrue(any(s.startswith(("ytq:", "https://")) for s in assert_sources), p.q)
+
+        # youtube off -> non-local queries skipped entirely
+        p2 = FakePlayer()
+        with mock.patch.object(self.settings, "source_local", lambda: True), \
+             mock.patch.object(self.settings, "source_youtube", lambda: False), \
+             mock.patch("dj.mpvproc.resolve_youtube",
+                        side_effect=AssertionError("yt used while disabled")):
+            enqueue_smart(p2, lib, ["a", "zzz no such song"])
+        self.assertEqual(p2.q, [("/x/a.mp3", "a")])
+
+        # both off -> nothing enqueued, no crash
+        p3 = FakePlayer()
+        with mock.patch.object(self.settings, "source_local", lambda: False), \
+             mock.patch.object(self.settings, "source_youtube", lambda: False):
+            enqueue_smart(p3, lib, ["a"])
+        self.assertEqual(p3.q, [])
+
+    def test_brain_hint_omits_library_when_local_off(self):
+        lib_hint = [{"name": "song", "path": "/x"}]
+        captured = {}
+        with mock.patch.object(djbrain.llm, "chat",
+                               lambda m: (captured.update(last=m[-1]["content"]) or
+                                          '{"reply":"ok","action":"chat","tracks":[]}')):
+            with mock.patch.object(self.settings, "source_local", lambda: False):
+                djbrain.think("hi", tracks_hint=lib_hint)
+        self.assertNotIn("Local library:", captured["last"])
+        self.assertIn("Sources available", captured["last"])
+        with mock.patch.object(djbrain.llm, "chat",
+                               lambda m: (captured.update(last=m[-1]["content"]) or
+                                          '{"reply":"ok","action":"chat","tracks":[]}')):
+            with mock.patch.object(self.settings, "source_local", lambda: True):
+                djbrain.think("hi", tracks_hint=lib_hint)
+        self.assertIn("Local library:", captured["last"])
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 import json
 import re
 
-from . import library, llm
+from . import library, llm, settings
 
 SYSTEM = """You are DJ-K, a fun radio DJ personality managing the user's music.
 You control playback. ALWAYS reply with a single JSON object, no markdown fences:
@@ -26,8 +26,14 @@ def think(user_msg, tracks_hint=None, history=None):
     messages = [{"role": "system", "content": SYSTEM}]
     for h in (history or [])[-6:]:
         messages.append(h)
-    lib = "\n".join(f"- {t['name']}" for t in (tracks_hint or [])[:library.MAX_TRACKS_TO_LLM])
-    user = user_msg if not lib else f"Local library:\n{lib}\n\nUser says: {user_msg}"
+    src = (f"local library {'on' if settings.source_local() else 'OFF'}, "
+           f"YouTube {'on' if settings.source_youtube() else 'OFF'}, "
+           f"AI generation {'on' if settings.musicgen() else 'OFF'}")
+    if settings.source_local():
+        lib = "\n".join(f"- {t['name']}" for t in (tracks_hint or [])[:library.MAX_TRACKS_TO_LLM])
+        user = f"Sources available: {src}\nLocal library:\n{lib}\n\nUser says: {user_msg}"
+    else:
+        user = f"Sources available: {src}\n\nUser says: {user_msg}"
     messages.append({"role": "user", "content": user})
     raw = llm.chat(messages)
     return _parse(raw)

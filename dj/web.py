@@ -123,6 +123,8 @@ def make_handler(player, lib):
 
             if self.path == "/api/track":
                 # play/queue a specific library track by path (validated in player)
+                if not settings.source_local():
+                    return self._json({"error": "local source disabled"}, 400)
                 path = str(data.get("path", ""))
                 mode = data.get("mode", "queue")
                 if path not in {t["path"] for t in lib}:

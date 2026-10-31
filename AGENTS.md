@@ -22,7 +22,7 @@ Personal AI DJ: natural-language chat that picks music, plays via mpv, talks lik
 
 ## Conventions
 
-- Config: `DJ_*` env vars still work and ALWAYS override `~/.config/djjamal/settings.json` (the settings UI writes that file; schema + precedence live in `dj/settings.py` — add new keys to `SCHEMA` there, never read env directly in feature modules). Playback toggles must stay live-readable (`settings.crossfade()` etc.), AI/path keys are import-time.
+- Config: `DJ_*` env vars still work and ALWAYS override `~/.config/djjamal/settings.json` (the settings UI writes that file; schema + precedence live in `dj/settings.py` — add new keys to `SCHEMA` there, never read env directly in feature modules). Playback + music-source toggles must stay live-readable (`settings.crossfade()`, `settings.source_local()` etc.), AI/path/desktop keys are import-time. ALL feature gating goes through these helpers — never an ad-hoc env read in a feature module.
 - Library cache: `~/.config/djjamal/library.json`, keyed to `DJ_MUSIC_DIR` (switching dirs triggers a rescan).
 - Crossfade = two overlapping mpv processes with volume ramps (`player.py`).
 - REPL slash commands: `/skip /pause /stop /queue /list /rescan /quit` — anything else goes to the DJ brain.

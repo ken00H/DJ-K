@@ -24,9 +24,10 @@ BPM badge. The same brain also runs as a terminal REPL.*
 
 ![DJ-K settings](assets/webui-settings.png)
 
-*Settings: playback toggles apply instantly; AI backend (provider, URLs, models,
-OpenAI key) and paths save to `~/.config/djjamal/settings.json` and apply on
-restart. Env vars still override the file. Open with the gear button or
+*Settings: music sources (local library / YouTube / AI generation) and playback
+toggles apply instantly; desktop integration (MPRIS, tray), AI backend (provider,
+URLs, models, OpenAI key) and paths save to `~/.config/djjamal/settings.json` and
+apply on restart. Env vars still override the file. Open with the gear button or
 [#settings](http://127.0.0.1:8090/#settings); the REPL has `/settings`.*
 
 ## Features

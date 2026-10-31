@@ -3,7 +3,7 @@
 ## Open (actively working)
 | Project | Next step | Last touched |
 |---------|-----------|--------------|
-| DJ-K (AI personal DJ) | idle — v0.9.0 settings UI + logo shipped; candidates: beat-phase, voice input | 2026-11-01 |
+| DJ-K (AI personal DJ) | idle — v0.9.1 every-feature toggles shipped; candidates: beat-phase, voice input | 2026-11-01 |
 
 ## Parked (interesting, paused ON PURPOSE)
 | Project | Reopen trigger | Closed? |
@@ -25,3 +25,4 @@
 - DJ Jamal v0.7.1: hardening sweep — ::1 crash, JSON 400, Host-header guard, /list cap; AUDIT LEDGER CLEAN
 - DJ-K v0.8.0: rebranded to DJ-K (brand + persona, internals kept); desktop presence — MPRIS media controls verified live (D-Bus Next advanced the real queue), tray icon, app-grid entry
 - DJ-K v0.9.0: settings UI (live playback toggles + AI backend/URLs/key mgmt, env-over-file precedence) + full logo/wordmark/favicon; API + UI verified live
+- DJ-K v0.9.1: per-source toggles (local/YouTube live, MPRIS/tray restart) — verified the reroute live (local off → Sabaton played from googlevideo.com)

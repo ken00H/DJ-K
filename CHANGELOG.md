@@ -3,6 +3,18 @@
 All notable changes to DJ Jamal are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.9.1] — 2026-11-01
+
+### Added
+- Per-source toggles: **Local library** and **YouTube** can be turned off independently (live, instant) — `DJ_SOURCE_LOCAL` / `DJ_SOURCE_YOUTUBE` env equivalents; when both are off for a query, DJ-K says so instead of silently failing
+- Desktop toggles: **Media controls (MPRIS)** and **Tray icon** on/off (restart-apply) — `DJ_MPRIS` / `DJ_TRAY`
+- Settings modal reorganized into Music sources / Playback / Desktop / AI backend / Advanced, with a pinned Save bar; the library panel hides when the local source is off
+- The DJ brain now receives the live source list ("Sources available: local library on, YouTube OFF, …") and steers accordingly
+- 4 new tests (45 total)
+
+### Verified live
+- Local off: `/api/track` → 400, library panel hidden, and a Sabaton request resolved through YouTube (mpv streaming from googlevideo.com proves the reroute)
+
 ## [0.9.0] — 2026-11-01
 
 ### Added

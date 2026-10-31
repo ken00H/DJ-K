@@ -4,6 +4,8 @@ the system GObject introspection package (python3-gi, like mpv a system
 install, not pip); silently off when absent (CI, Windows, headless)."""
 import os
 
+from . import settings
+
 BUS_NAME = "org.mpris.MediaPlayer2.djk"
 OBJECT_PATH = "/org/mpris/MediaPlayer2"
 
@@ -63,7 +65,7 @@ def available():
     if os.name == "nt" or not os.environ.get("DBUS_SESSION_BUS_ADDRESS"):
         return False
     import importlib.util
-    return importlib.util.find_spec("gi") is not None
+    return settings.mpris() and importlib.util.find_spec("gi") is not None
 
 
 def start(player):

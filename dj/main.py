@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import threading
 
-from dj import djbrain, library, mpris, mpvproc, musicgen, tray, tts
+from dj import djbrain, library, mpris, mpvproc, musicgen, settings, tray, tts
 from dj.player import Player
 
 BOLD, CYAN, MAGENTA, DIM, RESET = "\033[1m", "\033[36m", "\033[35m", "\033[2m", "\033[0m"
@@ -52,12 +52,16 @@ def enqueue_smart(player, lib, queries):
             except Exception as e:
                 print(f"{DIM}yt resolve failed ({q}): {e}{RESET}")
 
+    use_local = settings.source_local()
+    use_yt = settings.source_youtube()
     for q in queries:
-        hit = library.resolve(lib, q)
+        hit = library.resolve(lib, q) if use_local else None
         if hit:
             player.enqueue(hit["path"], hit["name"])
-        else:
+        elif use_yt:
             pending_yt.append(q)
+        else:
+            print(f"{DIM}no music source enabled for: {q}{RESET}")
     if pending_yt:
         resolve_later(pending_yt[:1])     # first now, so playback starts quickly
         for q in pending_yt[1:]:
@@ -122,6 +126,9 @@ def main():
             player.stop()
             continue
         if msg == "/list":
+            if not settings.source_local():
+                print(f"{DIM}local source disabled in settings (/settings or the gear button){RESET}")
+                continue
             names = [t["name"] for t in (library.search(lib, "") or lib)]
             for n in names[:30]:
                 print(f"  {n}")
@@ -133,7 +140,6 @@ def main():
             print(f"rescanned: {len(lib)} tracks")
             continue
         if msg == "/settings":
-            from dj import settings
             for k, v in settings.snapshot().items():
                 shown = settings.mask(v) if k == "openai_api_key" else v
                 print(f"  {k}: {shown}")
