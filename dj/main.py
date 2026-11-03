@@ -90,9 +90,10 @@ def dj_say(player, text):
 def main():
     if os.name == "nt":
         os.system("")  # enables ANSI escape processing in Windows terminals
+    tts.sweep_temp_audio()  # last run's orphaned voice/generated wavs
     lib = library.scan()
     print(f"{MAGENTA}🎧 DJ-K{RESET} — {len(lib)} local tracks in {library.MUSIC_DIR}")
-    print(f"{DIM}Commands: /skip /pause /stop /queue /list /settings /rescan /quit — or just talk.{RESET}")
+    print(f"{DIM}Commands: /play <name> /skip /pause /stop /queue /list /settings /rescan /quit — or just talk.{RESET}")
 
     def on_start(title):
         print(f"{CYAN}♪ now playing: {title}{RESET}")
@@ -123,9 +124,32 @@ def main():
             continue
         if msg == "/pause":
             player.pause()
+            st = player.status()  # cycle is silent — show the real resulting state
+            if st["playing"]:
+                print(f"{DIM}{'paused' if st['paused'] else 'resumed'}{RESET}")
+            else:
+                print(f"{DIM}nothing playing{RESET}")
             continue
         if msg == "/stop":
             player.stop()
+            print(f"{DIM}■ stopped{RESET}")
+            continue
+        if msg.startswith("/play ") or msg == "/play":
+            name = msg[6:].strip() if len(msg) > 5 else ""
+            if not name:
+                print(f"{DIM}usage: /play <name> (local library){RESET}")
+            elif not settings.source_local():
+                print(f"{DIM}local source disabled in settings (/settings){RESET}")
+            else:
+                hit = library.resolve(lib, name)
+                if not hit:
+                    print(f"{DIM}no local track matches {name!r}{RESET}")
+                else:
+                    player.stop()
+                    try:
+                        player.enqueue(hit["path"], hit["name"])
+                    except ValueError as e:
+                        print(f"{DIM}skipped a bad source: {e}{RESET}")
             continue
         if msg == "/list":
             if not settings.source_local():
@@ -156,7 +180,7 @@ def main():
             brain = djbrain.think(msg, tracks_hint=lib, history=history)
         except RuntimeError as e:
             print(f"{DIM}{e}{RESET}")
-            print("Local commands still work: /list /play <name> …")
+            print("Local commands still work: /play <name> /list /queue /skip /stop /rescan")
             continue
         except Exception as e:
             print(f"{DIM}brain hiccup: {e}{RESET}")

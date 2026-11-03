@@ -24,10 +24,11 @@ BPM badge. The same brain also runs as a terminal REPL.*
 
 ![DJ-K settings](assets/webui-settings.png)
 
-*Settings: music sources (local library / YouTube / AI generation) and playback
-toggles apply instantly; desktop integration (MPRIS, tray), AI backend (provider,
-URLs, models, OpenAI key) and paths save to `~/.config/djjamal/settings.json` and
-apply on restart. Env vars still override the file. Open with the gear button or
+*Settings: music sources (local library / YouTube / AI generation), playback
+toggles, the AI provider and the OpenAI key apply instantly; desktop integration
+(MPRIS, tray), other AI backend keys (URLs, models, timeout) and paths save to
+`~/.config/djjamal/settings.json` and apply on restart. Env vars still override
+the file. Open with the gear button or
 [#settings](http://127.0.0.1:8090/#settings); the REPL has `/settings`.*
 
 ## Features
@@ -116,6 +117,7 @@ Everything is optional and silently off where unsupported (Windows, CI, headless
 | `OLLAMA_URL` | `http://localhost:11434` | Ollama server |
 | `DJ_OLLAMA_MODEL` | `gemma4:e2b-it-qat` | Ollama model |
 | `DJ_OPENAI_MODEL` | `gpt-4o-mini` | OpenAI model |
+| `OPENAI_API_KEY` | — | OpenAI fallback key (also editable, masked, in the settings UI) |
 | `DJ_LLM_TIMEOUT` | `300` | LLM request timeout (seconds) |
 | `DJ_SOURCE_LOCAL` | `1` | `0` disables the local library source |
 | `DJ_SOURCE_YOUTUBE` | `1` | `0` disables the YouTube fallback |
@@ -124,7 +126,7 @@ Everything is optional and silently off where unsupported (Windows, CI, headless
 | `DJ_TTS_VOICE` | `~/.config/djjamal/voices/en_US-lessac-medium.onnx` | piper voice model |
 | `DJ_MUSICGEN` | `1` | `0` disables AI generation |
 | `DJ_BEATMATCH` | `1` | `0` disables tempo-matched transitions |
-| `DJ_GEN_PYTHON` | `~/.config/djjamal/gen-env/bin/python` | python of the generation venv |
+| `DJ_GEN_PYTHON` | *(auto: `~/.config/djjamal/gen-env` venv, per-OS bin dir)* | python of the generation venv |
 | `DJ_MPRIS` | `1` | `0` disables MPRIS media controls (restart) |
 | `DJ_TRAY` | `1` | `0` disables the tray icon (restart) |
 | `DJ_WEB_PORT` | `8090` | web UI port (restart) |

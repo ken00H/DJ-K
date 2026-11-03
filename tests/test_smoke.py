@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -43,7 +44,7 @@ class BrainParse(unittest.TestCase):
         self.assertEqual((d["reply"], d["action"], d["tracks"]), ("hi", "play", ["a"]))
 
     def test_json_with_surrounding_text(self):
-        d = djbrain._parse('Sure! {"reply": "hi", "action": "queue", "tracks": []}')
+        d = djbrain._parse('Sure! {"reply": "hi", "action": "queue", "tracks": ["a"]}')
         self.assertEqual(d["action"], "queue")
 
     def test_bad_action_becomes_chat(self):
@@ -63,6 +64,14 @@ class BrainParse(unittest.TestCase):
         d = djbrain._parse('{"reply": "on it", "action": "generate", "tracks": ["lo-fi beat"]}')
         self.assertEqual(d["action"], "generate")
         self.assertEqual(d["tracks"], ["lo-fi beat"])
+
+    def test_string_tracks_wrapped_not_split_chars(self):
+        d = djbrain._parse('{"reply": "hi", "action": "play", "tracks": "one song"}')
+        self.assertEqual(d["tracks"], ["one song"])
+
+    def test_dict_tracks_dropped(self):
+        d = djbrain._parse('{"reply": "hi", "action": "play", "tracks": {"a": 1}}')
+        self.assertEqual(d["tracks"], [])
 
 
 class MusicGen(unittest.TestCase):
@@ -118,6 +127,16 @@ class Library(unittest.TestCase):
             {"dir": "/some/other/dir", "tracks": [{"path": "x", "name": "stale"}]}))
         names = [t["name"] for t in library.scan()]
         self.assertEqual(names, ["a", "b"])  # dir mismatch -> rescan, not stale
+
+    def test_corrupt_cache_recovered_not_crash(self):
+        library.CACHE.write_text("{not json")
+        names = [t["name"] for t in library.scan()]
+        self.assertEqual(names, ["a", "b"])
+
+    def test_scan_atomic_write_leaves_no_tmp(self):
+        library.scan()
+        leftovers = [p for p in self.tmp.iterdir() if p.name.endswith(".tmp")]
+        self.assertEqual(leftovers, [])
 
     def test_search_and_resolve(self):
         tracks = library.scan()
@@ -220,10 +239,21 @@ class MPRIS(unittest.TestCase):
         self.assertEqual(mpris.metadata_for(None)["xesam:title"], "DJ-K")
 
 
+def _strip_settings_env(case):
+    """Remove ambient settings env vars so tests never read the developer's
+    shell (DJ_* plus the two non-DJ settings keys)."""
+    saved = {k: v for k, v in os.environ.items()
+             if k.startswith("DJ_") or k in ("OPENAI_API_KEY", "OLLAMA_URL")}
+    for k in saved:
+        del os.environ[k]
+    case.addCleanup(os.environ.update, saved)
+
+
 class Settings(unittest.TestCase):
     def setUp(self):
         from dj import settings
         self.s = settings
+        _strip_settings_env(self)
         self.tmp = Path(tempfile.mkdtemp())
         patcher = mock.patch.object(settings, "FILE", self.tmp / "settings.json")
         patcher.start()
@@ -261,7 +291,8 @@ class Settings(unittest.TestCase):
         self.assertNotIn("abcdef", self.s.mask("sk-abcdef1234567890"))
 
     def test_restart_keys_marked(self):
-        self.assertIn("provider", self.s.RESTART_KEYS)
+        self.assertNotIn("provider", self.s.RESTART_KEYS)  # llm.chat resolves it per call
+        self.assertNotIn("openai_api_key", self.s.RESTART_KEYS)  # resolved per call too
         self.assertNotIn("crossfade", self.s.RESTART_KEYS)
         self.assertIn("mpris", self.s.RESTART_KEYS)
         self.assertNotIn("source_local", self.s.RESTART_KEYS)
@@ -271,10 +302,15 @@ class SourceToggles(unittest.TestCase):
     def setUp(self):
         from dj import settings
         self.settings = settings
+        _strip_settings_env(self)
+        patcher = mock.patch.object(settings, "FILE", Path(tempfile.mkdtemp()) / "settings.json")
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def test_source_toggles_live(self):
-        self.assertTrue(self.settings.source_local())
-        self.assertTrue(self.settings.source_youtube())
+        # hermetic: no real file/env — defaults must be on and boolean
+        self.assertIs(self.settings.source_local(), True)
+        self.assertIs(self.settings.source_youtube(), True)
 
     def test_enqueue_smart_respects_sources(self):
         from dj.main import enqueue_smart
@@ -420,6 +456,128 @@ class AuditFixes(unittest.TestCase):
         self.assertEqual(mpris.playback_status(True, True), "Paused")
         self.assertEqual(mpris.playback_status(True, False), "Playing")
         self.assertEqual(mpris.playback_status(False, True), "Stopped")
+
+
+class AuditRound3(unittest.TestCase):
+    """Third audit round: crossfade both ramps, leaks, duck at zero, web hardening."""
+
+    def test_duck_restores_zero_volume(self):
+        # volume 0 is real — `or 100` used to stomp the listener's mute
+        from dj.player import Player
+        p = Player.__new__(Player)
+        p._pre_duck = 100
+        p._duck_depth = 0
+        p.sock_path = "/nonexistent.sock"
+        sent = []
+        with mock.patch.object(Player, "_ipc",
+                               staticmethod(lambda sock, cmd: sent.append(cmd))), \
+             mock.patch.object(p, "volume", lambda: 0):
+            p.duck(True)
+            p.duck(False)
+        self.assertEqual(sent[-1], ["set_property", "volume", 0])
+        self.assertEqual(sent[0], ["set_property", "volume", 25])
+
+    def test_nested_duck_keeps_real_pre_duck_level(self):
+        # two overlapping DJ lines: the second duck must not snapshot the
+        # already-ducked 25 as the restore target (music stayed quiet forever)
+        from dj.player import Player
+        p = Player.__new__(Player)
+        p._pre_duck = 100
+        p._duck_depth = 0
+        p.sock_path = "/nonexistent.sock"
+        sent = []
+        with mock.patch.object(Player, "_ipc",
+                               staticmethod(lambda sock, cmd: sent.append(cmd))), \
+             mock.patch.object(p, "volume", lambda: 80):
+            p.duck(True)   # A: 80 -> 25
+            p.duck(True)   # B: already ducked — no second snapshot
+            p.duck(False)  # A leaves: still ducked
+            p.duck(False)  # B leaves: restore 80
+        self.assertEqual(sent, [["set_property", "volume", 25],
+                                ["set_property", "volume", 80]])
+
+    def test_skip_stops_when_queue_was_all_dead_entries(self):
+        from dj.player import Player
+        p = Player.__new__(Player)
+        p.queue = [("ytq:dead", "dead")]
+        p._lock = threading.RLock()
+        stopped = []
+        with mock.patch.object(p, "_pop_and_play", return_value=False), \
+             mock.patch.object(p, "_playing", return_value=True), \
+             mock.patch.object(p, "stop", lambda: stopped.append(True)):
+            p.skip()
+        self.assertEqual(stopped, [True])
+
+    def test_transition_speed_matches_effective_not_raw_tempo(self):
+        # the outgoing track is playing at bpm × speed — chained transitions
+        # must match its effective tempo or every crossfade compounds the drift
+        from dj import beatmatch
+        from dj.player import Player
+        p = Player.__new__(Player)
+        p.current_source = "/old.mp3"
+        p.current_speed = 100.0 / 105.0  # launched matching 105→100: audibly 100 BPM now
+        bpms = {"/old.mp3": 105.0, "/new.mp3": 100.0}
+        with mock.patch.object(beatmatch, "cached_bpm", lambda s: bpms.get(s)):
+            # raw 105 vs 100 would give 1.05 (drift); effective 100 vs 100 gives 1.0
+            self.assertAlmostEqual(p._transition_speed("/new.mp3", True), 1.0, places=6)
+
+    def test_sweep_removes_orphaned_temp_audio_only(self):
+        from dj import tts
+        tmp = Path(tempfile.mkdtemp())
+        (tmp / "unrelated.wav").write_bytes(b"x")
+        for name in ("djk-tts-abc.wav", "djgen-xyz.wav"):
+            (tmp / name).write_bytes(b"x")
+            (tmp / (name + ".sock")).write_bytes(b"x")
+        (tmp / "djjamal-deadbeef.sock").write_bytes(b"x")  # leaked player IPC socket
+        with mock.patch.object(tts.tempfile, "gettempdir", lambda: str(tmp)):
+            tts.sweep_temp_audio()
+        self.assertTrue((tmp / "unrelated.wav").exists())
+        self.assertFalse((tmp / "djk-tts-abc.wav").exists())
+        self.assertFalse((tmp / "djk-tts-abc.wav.sock").exists())
+        self.assertFalse((tmp / "djgen-xyz.wav").exists())
+        self.assertFalse((tmp / "djgen-xyz.wav.sock").exists())
+        self.assertFalse((tmp / "djjamal-deadbeef.sock").exists())
+
+
+class AuditRound4(unittest.TestCase):
+    """Fourth audit round: bpm-entry guard, empty-tracks downgrade, metadata spec."""
+
+    def setUp(self):
+        from dj import beatmatch
+        self.bm = beatmatch
+        self.tmp = Path(tempfile.mkdtemp())
+        patcher = mock.patch.object(beatmatch, "CACHE", self.tmp / "bpm.json")
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_bpm_cache_garbage_entry_does_not_crash(self):
+        from dj import beatmatch
+        f = self.tmp / "song.mp3"
+        f.write_bytes(b"x")
+        for bad in ("3.5", '{}', '{"bpm": "fast"}', '{"bpm": 120}', '[1,2]'):
+            beatmatch.CACHE.write_text(json.dumps({str(f): bad}))
+            self.assertIsNone(beatmatch.cached_bpm(str(f)))
+        beatmatch.CACHE.write_text(json.dumps(
+            {str(f): {"bpm": 128.0, "mtime": f.stat().st_mtime}}))
+        self.assertEqual(beatmatch.cached_bpm(str(f)), 128.0)
+
+    def test_playback_action_with_no_tracks_downgrades_to_chat(self):
+        d = djbrain._parse('{"reply": "cranking it!", "action": "play", "tracks": null}')
+        self.assertEqual(d["action"], "chat")
+        d = djbrain._parse('{"reply": "ok", "action": "generate", "tracks": []}')
+        self.assertEqual(d["action"], "chat")
+        d = djbrain._parse('{"reply": "ok", "action": "queue", "tracks": ["a"]}')
+        self.assertEqual(d["action"], "queue")  # real tracks keep the action
+
+    def test_ytdl_scheme_no_longer_allowed(self):
+        self.assertRaises(ValueError, mpvproc.validate_source, "ytdl:song")
+
+    def test_metadata_carries_trackid_and_length(self):
+        from dj import mpris
+        d = mpris.metadata_for("Nightmare", duration=213.5)
+        self.assertTrue(d["mpris:trackid"].startswith("/org/mpris/MediaPlayer2"))
+        self.assertEqual(d["mpris:length"], int(213.5 * mpris.MICROSECONDS))
+        self.assertNotIn("mpris:length", mpris.metadata_for("Nightmare"))
 
 
 if __name__ == "__main__":

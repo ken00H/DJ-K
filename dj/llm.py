@@ -90,7 +90,10 @@ def chat(messages):
         except Exception as e:
             errors.append(f"{fn.__name__[1:]}: {e}")
     if settings.resolve("openai_api_key"):
-        return _openai(messages)
+        try:
+            return _openai(messages)
+        except Exception as e:
+            errors.append(f"openai: {e}")
     raise RuntimeError(
         "No AI available. Tried: " + " | ".join(errors) +
         ". Start llama-server (:8080) or `ollama serve`, or export OPENAI_API_KEY.")

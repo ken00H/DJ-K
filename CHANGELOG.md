@@ -5,6 +5,65 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [unreleased]
 
+### Fixed (audit round 4 — full egm-review pipeline, `consolidated_review_report.md`)
+
+Crash-class:
+- A failed volume query during a transition (`None` from the 1 s IPC timeout or a dying outgoing mpv) crashed `/skip` with a `TypeError` or left the incoming track playing silently at volume 0 — now falls back to 100
+- One malformed `bpm.json` entry (hand-edited, partial write) crashed the REPL on skip, killed the advance loop and silently dead-locked MPRIS polling — entry shape guarded like `library.json` in round 3; cache writes are now atomic too
+- `library.json` caches that are valid JSON but structurally wrong (missing `tracks`) crashed startup — shape-guarded
+- Broken gi/AppIndicator stacks (import OK, service dead) no-op now instead of crashing startup (tray + MPRIS wrapped)
+
+Correctness:
+- Overlapping DJ lines permanently quieted the music (nested duck snapshotted the already-ducked volume) — duck depth counter; only the first duck snapshots, the last restores
+- Beatmatch forgot its own tempo: each chained transition matched against the raw cached BPM instead of the effective (sped-up) one, compounding a ~5 % tempo jump at every crossfade — the outgoing track's effective BPM is now carried across transitions
+- `skip()` held the player lock while a dead `ytq:` entry resolved (up to tens of seconds) — resolve now runs outside it, `stop()`/`skip()` stay responsive
+- Media-key **Pause** (MPRIS `Pause` method) stopped playback and wiped the queue — it pauses now; only `Stop` stops
+- MPRIS metadata now carries `mpris:trackid` and `mpris:length` — desktop seek bars and `SetPosition` work in spec-following clients
+- `play`/`queue` with an empty (coerced) track list no longer prints the DJ's hype line and silently does nothing (or stops the current track) — downgraded to chat
+- The library hint sent to the LLM is shuffled before the 120-track cap — it was permanently biased to the first 120 tracks alphabetically on big libraries
+- Every user turn now ends with an explicit "reply with only the JSON object" anchor — plain-text assistant history was pulling small local models out of the JSON format mid-conversation
+
+Web UI:
+- Enabling "Local library" in settings refetches the library panel (was empty until a manual rescan/reload); empty panel shows a "no tracks" hint instead of blank space
+- Unknown `/api/cmd` values return 400 instead of a silent `ok`
+- MusicGen progress/failure is at least logged server-side (was fully silent on the web path — no chat event channel yet)
+- Chat history mutation is lock-guarded (concurrent handler threads); rescan button has an in-flight guard; library rows use an indexed render (O(n²) `indexOf` removed); chat submit reuses the shared `post()` helper
+
+REPL:
+- `/play <name>` added — direct local-library playback without the LLM, completing the dead-backend recovery path (the old hint advertised `/play` but it did not exist); the failure hint now lists real commands
+- `/pause` reports paused/resumed from real state, `/stop` confirms
+
+Settings/docs:
+- `openai_api_key` is now marked applies-instantly (it always resolved per call) — UI no longer claims a restart is needed; README settings paragraph and config table synced (added `OPENAI_API_KEY` row, corrected `DJ_GEN_PYTHON` default); settings modal gained `llamacpp_model`, `gen_python`, `web_port`
+- Dead `ytdl:` scheme removed from source validation; yt-dlp documented as a Python module import (not a PATH binary); `search("")` whole-library convention documented
+
+## [0.9.3] — 2026-11-01
+
+Third full audit round (every module, UI, tests, CI re-read line by line).
+
+### Added
+- True crossfade: the incoming track now fades **in** from 0 over the same 2.5 s the old one fades out (previously only the outgoing side ramped, so every transition had a volume bump); verified live — mid-ramp 24 → settled 80
+- Track transitions carry the listener's volume across mpv restarts (fresh mpv used to snap back to 100)
+- Web chat speaks: DJ voice now ducks the music and talks in web mode too, same as the REPL
+- Startup sweep deletes last run's orphaned temp audio (voice wavs `djk-tts-*`, generated tracks `djgen-*` and their IPC sockets) — hard-exit quit paths used to leave multi-MB wavs in `/tmp` forever
+
+### Fixed
+- Corrupt `library.json` crashed the app at startup (`json.loads` unguarded); cache writes are now atomic (tmp + rename) so a crash can't produce that corrupt file in the first place
+- LLM replying `"tracks": "one song"` (string instead of list) enqueued garbage per-character queries — bare strings wrap to one track, non-lists drop to empty
+- mpv IPC socket files leaked on every stop/skip (only the crossfade path cleaned up); `stop()` and the no-crossfade path unlink now — verified live: sockets while playing 6 → 5 after stop (5 are pre-fix leftovers), 0 new leaks
+- `/api/cmd` with a non-string `cmd` (e.g. a JSON list) crashed the handler and dropped the connection — now 400 `bad cmd`
+- DJ voice at volume 0 restored to 100 after speaking (`0 or 100` stomped the mute) — explicit None check
+- bpm.json cache: concurrent prewarm threads could lose each other's entries (unlocked read-modify-write) — locked now
+- `skip` silently did nothing when the whole queue was dead deferred-YouTube entries (they were purged but the current track kept playing) — it now stops, matching skip-on-empty-queue
+- MPRIS emits `PropertiesChanged` for Volume, so desktop media sliders stay two-way in sync
+- `/api/chat` fetch aborts after 120 s with "took too long — try again" instead of hanging the UI forever on a dead provider chain
+- Library play/queue affordances are real `<button>`s — keyboard focusable and activatable (were `role="button"` spans with no tab stop)
+- Settings temp file is created 0600 from the first byte (was briefly world-readable before a follow-up chmod on key-bearing writes)
+
+### Changed
+- `provider` setting now applies **instantly** (it was already resolved per call by `llm.chat`) — no longer flagged "restart needed"; settings UI label updated
+- Removed dead `tray.available()` (never called anywhere)
+
 ## [0.9.2] — 2026-11-01
 
 ### Added

@@ -7,7 +7,7 @@ Personal AI DJ: natural-language chat that picks music, plays via mpv, talks lik
 - `./run.sh` — terminal REPL
 - `./run.sh web` — web UI at http://127.0.0.1:8090 (`DJ_WEB_PORT` to change)
 - No pip dependencies. Tests: `python3 -m unittest discover -s tests` (stdlib-only, network-free). Verify changes by running the REPL with a command like `/list`, or `curl http://127.0.0.1:8090/api/state` against the web UI.
-- Requires: Linux or Windows, Python 3.10+, `mpv`, `yt-dlp` (2026+) on PATH, one AI backend (llama.cpp :8080, Ollama :11434, or `OPENAI_API_KEY`).
+- Requires: Linux or Windows, Python 3.10+, `mpv`, `yt-dlp` (2026+) importable as a Python module (`pip install --user yt-dlp`), one AI backend (llama.cpp :8080, Ollama :11434, or `OPENAI_API_KEY`).
 
 ## Architecture rules
 
@@ -25,7 +25,7 @@ Personal AI DJ: natural-language chat that picks music, plays via mpv, talks lik
 - Config: `DJ_*` env vars still work and ALWAYS override `~/.config/djjamal/settings.json` (the settings UI writes that file; schema + precedence live in `dj/settings.py` — add new keys to `SCHEMA` there, never read env directly in feature modules). Playback + music-source toggles must stay live-readable (`settings.crossfade()`, `settings.source_local()` etc.), AI/path/desktop keys are import-time. ALL feature gating goes through these helpers — never an ad-hoc env read in a feature module.
 - Library cache: `~/.config/djjamal/library.json`, keyed to `DJ_MUSIC_DIR` (switching dirs triggers a rescan).
 - Crossfade = two overlapping mpv processes with volume ramps (`player.py`).
-- REPL slash commands: `/skip /pause /stop /queue /list /rescan /settings /quit` — anything else goes to the DJ brain. Web POST endpoints are CSRF-guarded (`web.cross_site`) — keep that check on any new POST route.
+- REPL slash commands: `/play <name> /skip /pause /stop /queue /list /rescan /settings /quit` (aliases: `/exit`, `q`) — anything else goes to the DJ brain. Web POST endpoints are CSRF-guarded (`web.cross_site`) — keep that check on any new POST route.
 
 ## Read before editing sensitive areas
 

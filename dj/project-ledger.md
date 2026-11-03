@@ -3,7 +3,7 @@
 ## Open (actively working)
 | Project | Next step | Last touched |
 |---------|-----------|--------------|
-| DJ-K (AI personal DJ) | audit round 2 committed f5a14a6 (CI green); idle — candidates: beat-phase, voice input, README screenshots refresh | 2026-11-01 |
+| DJ-K (AI personal DJ) | audit round 4 resolved (goldfish_review_report.md): 32 fixes applied — sweep sockets, bpm-entry guard, nested duck, tempo-drift carry, skip-lock release, MPRIS Pause/metadata, /play REPL command, settings key live-flag, web panel refetch; 63 tests green, ruff clean, uncommitted — next: user reviews diff, then commit+tag v0.9.3 (no git ops without approval) | 2026-11-03 |
 
 ## Parked (interesting, paused ON PURPOSE)
 | Project | Reopen trigger | Closed? |
@@ -28,3 +28,4 @@
 - DJ-K v0.9.1: per-source toggles (local/YouTube live, MPRIS/tray restart) — verified the reroute live (local off → Sabaton played from googlevideo.com)
 - DJ-K unreleased: web quit button + icon redesign committed; second full audit fixed (P0 no-gi startup crash, POST CSRF, mpv-missing queue death, invisible pause state, TTS wav leak, volume-stomp) + web UI floor polish (tokens/focus/motion/SVG icons/mobile)
 - DJ-K v0.9.2 released: quit button + icon fix + full audit-hardening round (f5a14a6), fresh README screenshots; 50 tests, 3-OS CI green
+- DJ-K v0.9.3 (uncommitted): audit round 3 — true crossfade (fade-in verified live 24→80), corrupt-cache startup crash, tracks-string garbage queries, socket/temp-wav leaks (stop now unlinks; startup sweep), duck-at-zero, bpm cache lock, web chat speaks, /api/cmd hardening, provider live-toggle; 57 tests green

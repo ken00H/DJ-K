@@ -3,7 +3,7 @@ python3-gi with AppIndicator3 (Ubuntu GNOME ships the shell side via
 ubuntu-appindicators). Silent no-op when unavailable."""
 import os
 
-from . import glibloop, mpris, settings, tts  # mpris shares the gi + session-bus base
+from . import glibloop, settings, tts
 
 
 def _indicator_module():
@@ -21,10 +21,6 @@ def _indicator_module():
         except (ValueError, ImportError):
             continue
     return None
-
-
-def available():
-    return settings.tray() and mpris.available() and _indicator_module() is not None
 
 
 def start(player, icon_path):
@@ -60,9 +56,12 @@ def start(player, icon_path):
     item("✕ Quit DJ-K", lambda: (tts.stop_all(), player.stop(), os._exit(0)))
     menu.show_all()
 
-    ind = AppIndicator3.Indicator.new(
-        "djk", icon_path, AppIndicator3.IndicatorCategory.APPLICATION_STATUS)
-    ind.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
-    ind.set_menu(menu)
+    try:  # indicator service broken (no appindicator daemon) must no-op, not crash
+        ind = AppIndicator3.Indicator.new(
+            "djk", icon_path, AppIndicator3.IndicatorCategory.APPLICATION_STATUS)
+        ind.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
+        ind.set_menu(menu)
+    except Exception:
+        return None
     glibloop.ensure_loop()
     return ind

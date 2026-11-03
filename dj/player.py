@@ -22,8 +22,10 @@ class Player:
         self.sock_path = None
         self.current = None
         self.current_source = None  # path/URL of current track (for beatmatch)
+        self.current_speed = 1.0    # --speed the current track plays at (beatmatch)
         self.on_track_start = on_track_start
         self._pre_duck = 100
+        self._duck_depth = 0  # overlapping DJ lines duck/unduck in pairs
         self._lock = threading.RLock()
         threading.Thread(target=self._advance_loop, daemon=True).start()
 
@@ -107,6 +109,8 @@ class Player:
 
     @staticmethod
     def _unlink(sock):
+        if not sock:  # nothing ever spawned — stop() on a fresh player
+            return
         try:
             os.unlink(sock)
         except OSError:  # Windows named pipes have no file to remove
@@ -123,6 +127,16 @@ class Player:
         proc.terminate()
         Player._unlink(sock)
 
+    @staticmethod
+    def _fade_in(sock, target, secs=FADE_SECS):
+        """Ramp the incoming track 0→target so a crossfade fades BOTH sides."""
+        steps = 10
+        for i in range(1, steps + 1):
+            Player._ipc(sock, ["set_property", "volume", max(0, int(target * i / steps))])
+            time.sleep(secs / steps)
+        # ponytail: ramp thread can race a concurrent duck()/volume() set — accepted,
+        # same class of race as the fade-out ramp; duck lasts longer than the ramp
+
     # --- public API --------------------------------------------------------
     def _transition_speed(self, new_source, bm_available):
         """Speed for an incoming local file to match the outgoing track's tempo.
@@ -132,24 +146,43 @@ class Player:
         old_src = self.current_source
         if not (old_src and os.path.isfile(old_src) and os.path.isfile(new_source)):
             return 1.0
-        return beatmatch.speed_for(beatmatch.cached_bpm(old_src),
+        # the outgoing track is *audibly playing* at bpm × speed — match its
+        # effective tempo, or every chained transition compounds the drift
+        old_bpm = beatmatch.cached_bpm(old_src)
+        if old_bpm and self.current_speed != 1.0:
+            old_bpm *= self.current_speed
+        return beatmatch.speed_for(old_bpm,
                                    beatmatch.cached_bpm(new_source)) or 1.0
 
     def play_now(self, source, title=""):
         """Start source immediately (with crossfade if something is playing)."""
         bm_available = beatmatch.available()  # probe outside the lock (cold venv: slow)
+        fade = settings.crossfade()
         with self._lock:
             speed = self._transition_speed(source, bm_available)
             old_proc, old_sock = self.proc, self.sock_path
-            self.proc, self.sock_path = self._spawn(source, speed=speed)
+            had_audio = old_proc is not None and old_proc.poll() is None
+            # carry the listener's volume across the transition (fresh mpv defaults
+            # to 100); None = query timed out or mpv died mid-race — don't pass it on
+            target = self.volume() if had_audio else 100
+            if target is None:
+                target = 100
+            spawned = self._spawn(
+                source, start_volume=0 if had_audio and fade else target, speed=speed)
+            self.proc, self.sock_path = spawned
             self.current, self.current_source = title or source, source
+            self.current_speed = speed
         beatmatch.prewarm([s for s, _ in self.queue[:2]])  # warm next transition
-        if old_proc and old_proc.poll() is None:
-            if settings.crossfade():
+        if had_audio and fade:
+            threading.Thread(target=self._fade_in,
+                             args=(spawned[1], target), daemon=True).start()
+        if had_audio:
+            if fade:
                 threading.Thread(target=self._fade_and_kill,
                                  args=(old_proc, old_sock), daemon=True).start()
             else:
                 old_proc.terminate()
+                self._unlink(old_sock)  # no ramp thread to do it — don't leak the socket
         self._notify()
 
     def enqueue(self, source, title=""):
@@ -159,20 +192,30 @@ class Player:
 
     def skip(self):
         with self._lock:
-            if self.queue:
-                try:
-                    self._pop_and_play(force=True)
-                except ValueError as e:
-                    print(f"skipped a bad source: {e}")
-            elif self._playing():
+            had_queue = bool(self.queue)
+            playing = self._playing()
+        if not had_queue:
+            if playing:
                 self.stop()
+            return
+        try:
+            # pop outside the lock: a dead ytq: entry can take tens of seconds to
+            # resolve, and stop()/skip() must stay responsive meanwhile
+            # ponytail: the unlocked window lets a simultaneous advance-loop pop
+            # double-advance once — same accepted-race family as the fade ramps
+            if not self._pop_and_play(force=True) and self._playing():
+                self.stop()  # queue was all dead entries — skip means stop
+        except ValueError as e:
+            print(f"skipped a bad source: {e}")
 
     def stop(self):
         with self._lock:
             self.queue.clear()
             if self.proc and self.proc.poll() is None:
                 self.proc.terminate()
+            self._unlink(self.sock_path)  # no fade thread ran — don't leak the socket
             self.proc, self.current, self.current_source = None, None, None
+            self.sock_path = None
 
     def pause(self):
         self._ipc(self.sock_path, ["cycle", "pause"])
@@ -212,21 +255,31 @@ class Player:
 
     def duck(self, on):
         """Duck music volume to 25% (on=True) / back to the pre-duck level —
-        used while the DJ voice speaks over the track."""
+        used while the DJ voice speaks over the track. Overlapping DJ lines
+        nest: only the first duck snapshots the volume, the last unduck restores."""
         if on:
-            self._pre_duck = self.volume() or 100
+            self._duck_depth += 1
+            if self._duck_depth > 1:
+                return  # already ducked — keep the real pre-duck level
+            v = self.volume()  # explicit None check: volume 0 must duck back to 0
+            self._pre_duck = v if v is not None else 100
             self._ipc(self.sock_path, ["set_property", "volume", 25])
         else:
-            self._ipc(self.sock_path, ["set_property", "volume", self._pre_duck])
+            if self._duck_depth == 0:
+                return
+            self._duck_depth -= 1
+            if self._duck_depth == 0:
+                self._ipc(self.sock_path, ["set_property", "volume", self._pre_duck])
 
     def _playing(self):
         return self.proc is not None and self.proc.poll() is None
 
     def _pop_and_play(self, force=False):
+        """Start the next queued track. Returns True if something started."""
         with self._lock:
             # guard: if a track just started (advance loop vs enqueue race), leave the queue alone
             if not self.queue or (self._playing() and not force):
-                return
+                return False
             source, title = self.queue.pop(0)
         if source.startswith("ytq:"):
             # resolve at play time: googleaudio URLs expire (~6h) if pre-resolved
@@ -238,6 +291,7 @@ class Player:
                 print(f"yt resolve failed ({title}): {e}")
                 return self._pop_and_play(force)  # try the next queued track
         self.play_now(source, title)
+        return True
 
     def _notify(self):
         if self.on_track_start:

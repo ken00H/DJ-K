@@ -126,7 +126,9 @@
   #lib .t span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
   #lib .t span:first-child { min-width:0; }
   #lib .t .go { visibility:hidden; color:var(--accent2); flex:none;
-                display:inline-flex; padding:6px 4px; }
+                display:inline-flex; padding:6px 4px; background:none;
+                border:0; border-radius:0; }
+  #lib .t .go:hover { background:none; }
   #lib .t:hover .go { visibility:visible; }
   form { display:flex; gap:10px; padding:14px 20px; background:var(--panel);
          border-top:1px solid var(--line); }
@@ -187,17 +189,20 @@
     <h3>Desktop <small>(applies on restart)</small></h3>
     <div class="row"><label for="s_mpris">Media controls (MPRIS)</label><label class="switch"><input type="checkbox" id="s_mpris"><span></span></label></div>
     <div class="row"><label for="s_tray">Tray icon</label><label class="switch"><input type="checkbox" id="s_tray"><span></span></label></div>
-    <h3>AI backend <small>(applies on restart)</small></h3>
-    <div class="row"><label for="s_provider">Provider</label><select id="s_provider"><option>auto</option><option>llamacpp</option><option>ollama</option><option>openai</option></select></div>
+    <h3>AI backend <small>(URLs, models, timeout on restart)</small></h3>
+    <div class="row"><label for="s_provider">Provider <small>(applies instantly)</small></label><select id="s_provider"><option>auto</option><option>llamacpp</option><option>ollama</option><option>openai</option></select></div>
+    <div class="row"><label for="s_openai_api_key">OpenAI key <small>(applies instantly)</small></label><input type="password" id="s_openai_api_key" placeholder="sk-…"></div>
     <div class="row"><label for="s_llamacpp_url">llama.cpp URL</label><input type="text" id="s_llamacpp_url"></div>
+    <div class="row"><label for="s_llamacpp_model">llama.cpp model</label><input type="text" id="s_llamacpp_model"></div>
     <div class="row"><label for="s_ollama_url">Ollama URL</label><input type="text" id="s_ollama_url"></div>
     <div class="row"><label for="s_ollama_model">Ollama model</label><input type="text" id="s_ollama_model"></div>
-    <div class="row"><label for="s_openai_api_key">OpenAI key</label><input type="password" id="s_openai_api_key" placeholder="sk-…"></div>
     <div class="row"><label for="s_openai_model">OpenAI model</label><input type="text" id="s_openai_model"></div>
     <div class="row"><label for="s_llm_timeout">LLM timeout (s)</label><input type="text" id="s_llm_timeout"></div>
     <h3>Advanced <small>(applies on restart)</small></h3>
     <div class="row"><label for="s_music_dir">Music folder</label><input type="text" id="s_music_dir"></div>
     <div class="row"><label for="s_tts_voice">TTS voice</label><input type="text" id="s_tts_voice"></div>
+    <div class="row"><label for="s_gen_python">Generation venv python</label><input type="text" id="s_gen_python"></div>
+    <div class="row"><label for="s_web_port">Web UI port</label><input type="text" id="s_web_port"></div>
     <div class="note">Settings live in <code>~/.config/djjamal/settings.json</code> (0600 — it holds your API key). Env vars override.</div>
     </div>
     <div class="actions">
@@ -214,8 +219,8 @@ const chat = $('chat'), now = $('title'), bpmEl = $('bpm'), seek = $('seek'),
       timeEl = $('time'), volEl = $('vol'), queueEl = $('queue'), libEl = $('lib');
 const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
 const fmt = s => { s = Math.max(0, s|0); return `${(s/60)|0}:${String(s%60).padStart(2,'0')}`; };
-const post = (path, body) => fetch(path, { method:'POST',
-  headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+const post = (path, body, opt) => fetch(path, { method:'POST',
+  headers:{'Content-Type':'application/json'}, body: JSON.stringify(body), ...opt });
 
 const add = (cls, html) => { const d = document.createElement('div');
   d.className = 'msg ' + cls; d.innerHTML = html; chat.appendChild(d);
@@ -235,10 +240,18 @@ document.getElementById('f').onsubmit = async e => {
   const t = add('dj thinking','DJ is thinking…');
   busy = true;
   try {
-    const d = await (await post('/api/chat', {text})).json();
+    const ctl = new AbortController();  // dead-provider chain can hang for minutes
+    const timer = setTimeout(() => ctl.abort(), 120000);
+    try {
+      const d = await (await post('/api/chat', {text}, {signal: ctl.signal})).json();
+      t.className = 'msg dj';
+      t.innerHTML = '<b>DJ-K</b> ' + esc(d.reply);
+    } finally { clearTimeout(timer); }
+  } catch (e) {
     t.className = 'msg dj';
-    t.innerHTML = '<b>DJ-K</b> ' + esc(d.reply);
-  } catch { t.innerHTML = '<b>DJ-K</b> connection lost'; }
+    t.innerHTML = '<b>DJ-K</b> ' + (e.name === 'AbortError' ? 'took too long — try again'
+                                                              : 'connection lost');
+  }
   busy = false;
 };
 
@@ -262,13 +275,15 @@ seek.onchange = () => { seeking = false;
 let LIB = [];
 const renderLib = filter => {
   const f = (filter||'').toLowerCase().split(/\s+/).filter(Boolean);
-  libEl.innerHTML = LIB
-    .filter(t => f.every(w => t.name.toLowerCase().includes(w)))
-    .slice(0, 300)
-    .map((t,i) => `<div class="t" data-i="${LIB.indexOf(t)}">
+  const rows = LIB.map((t, i) => ({t, i}))
+    .filter(({t}) => f.every(w => t.name.toLowerCase().includes(w)))
+    .slice(0, 300);
+  libEl.innerHTML = rows.length ? rows.map(({t, i}) =>
+    `<div class="t" data-i="${i}" title="add to queue">
         <span>${esc(t.name)}</span>
-        <span class="go" data-mode="play" data-i="${LIB.indexOf(t)}" role="button" title="play now"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7V5z"/></svg></span>
-        <span class="go" data-mode="queue" data-i="${LIB.indexOf(t)}" role="button" title="add to queue"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5z"/></svg></span></div>`).join('');
+        <button type="button" class="go" data-mode="play" data-i="${i}" title="play now"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7V5z"/></svg></button>
+        <button type="button" class="go" data-mode="queue" data-i="${i}" title="add to queue"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5z"/></svg></button></div>`).join('')
+    : '<div class="q" style="color:var(--dim)">no tracks — check the music folder or rescan</div>';
 };
 libEl.onclick = e => {
   const go = e.target.closest('.go');
@@ -281,7 +296,10 @@ libEl.onclick = e => {
     .catch(() => sys('track request failed — connection lost'));
 };
 $('libsearch').oninput = e => renderLib(e.target.value);
+let rescanning = false;
 $('rescan').onclick = async () => {
+  if (rescanning) return;
+  rescanning = true;
   try {
     const r = await (await post('/api/rescan', {})).json();
     if (r.error) return sys(r.error);
@@ -289,6 +307,7 @@ $('rescan').onclick = async () => {
     renderLib($('libsearch').value);
     sys(`library rescanned — ${r.count} tracks`);
   } catch { sys('rescan failed — connection lost'); }
+  finally { rescanning = false; }
 };
 fetch('/api/library').then(r => r.json()).then(t => { LIB = t; renderLib(''); })
   .catch(() => {});
@@ -300,9 +319,9 @@ fetch('/api/history').then(r => r.json()).then(h => {
 
 // --- settings ---
 const KEYS = ["crossfade","tts","beatmatch","musicgen","source_local","source_youtube",
-  "mpris","tray","provider","llamacpp_url",
+  "mpris","tray","provider","llamacpp_url","llamacpp_model",
   "ollama_url","ollama_model","openai_model","openai_api_key","llm_timeout",
-  "music_dir","tts_voice"];
+  "music_dir","tts_voice","gen_python","web_port"];
 const applySourceVisibility = s =>
   document.getElementById('libwrap').style.display = s.source_local ? '' : 'none';
 const overlay = $('overlay');
@@ -325,7 +344,7 @@ const openSettings = async () => {
   $('s_source_local').focus();
 };
 $('gear').onclick = openSettings;
-if (location.hash === '#settings') openSettings();  // deep link / screenshot hook
+if (location.hash === '#settings') openSettings();  // deep link (also used for docs screenshots)
 $('s_close').onclick = closeSettings;
 overlay.onclick = e => { if (e.target === overlay) closeSettings(); };
 document.addEventListener('keydown', e => {
@@ -376,7 +395,7 @@ document.getElementById('power').onclick = async () => {
 };
 
 // --- state poll ---
-let fails = 0, pausedShown = null;
+let fails = 0, pausedShown = null, libShown = true;
 const poll = async () => {
   if (dead) return;
   try {
@@ -393,6 +412,13 @@ const poll = async () => {
         `<span>${s.paused ? 'resume' : 'pause'}</span>`;
     }
     document.getElementById('libwrap').style.display = s.source_local ? '' : 'none';
+    if (s.source_local && !libShown) {
+      // panel just became visible (e.g. source toggled on) — the one-shot page-load
+      // fetch may predate the toggle or have returned [] while it was off
+      libShown = true;
+      fetch('/api/library').then(r => r.json()).then(t => { LIB = t; renderLib($('libsearch').value); })
+        .catch(() => {});
+    } else if (!s.source_local) libShown = false;
     if (s.volume != null && s.volume !== lastVol && Date.now() - volAt > 1500) {
       volEl.value = lastVol = s.volume;
     }

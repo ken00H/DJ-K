@@ -36,6 +36,7 @@ finally:
 
 _avail = None
 _avail_lock = threading.Lock()
+_cache_lock = threading.Lock()  # bpm.json read-modify-write spans threads
 
 
 def available():
@@ -64,7 +65,9 @@ def _load_cache():
 
 def _save_cache(data):
     CACHE.parent.mkdir(parents=True, exist_ok=True)
-    CACHE.write_text(json.dumps(data))
+    tmp = CACHE.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(data))
+    os.replace(tmp, CACHE)  # atomic — a crash can't corrupt the whole cache
 
 
 def analyze(path):
@@ -78,9 +81,14 @@ def analyze(path):
         return None
     if not 30 <= bpm <= 300:  # nonsense detection — discard
         return None
-    data = _load_cache()
-    data[path] = {"bpm": bpm, "mtime": os.path.getmtime(path)}
-    _save_cache(data)
+    with _cache_lock:  # concurrent prewarm threads — last write must not lose the other's entry
+        try:
+            mtime = os.path.getmtime(path)  # file may vanish mid-prewarm
+        except OSError:
+            return bpm  # nothing to cache against
+        data = _load_cache()
+        data[path] = {"bpm": bpm, "mtime": mtime}
+        _save_cache(data)
     return bpm
 
 
@@ -88,14 +96,15 @@ def cached_bpm(path):
     """Instant BPM from cache, or None. Never analyzes inline (transitions
     must not block); misses get filled by prewarm for next time."""
     entry = _load_cache().get(path)
-    if not entry:
+    if not isinstance(entry, dict):  # hand-edited / foreign garbage must not crash playback
         return None
     try:
         if os.path.getmtime(path) != entry["mtime"]:
             return None  # file changed — stale
-    except OSError:
+    except (OSError, KeyError, TypeError):
         return None
-    return entry["bpm"]
+    bpm = entry.get("bpm")
+    return bpm if isinstance(bpm, (int, float)) else None
 
 
 def prewarm(paths):

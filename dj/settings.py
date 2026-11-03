@@ -23,13 +23,13 @@ SCHEMA = {
     "source_youtube": ("DJ_SOURCE_YOUTUBE", "1", bool, True),
     "mpris":        ("DJ_MPRIS", "1", bool, False),
     "tray":         ("DJ_TRAY", "1", bool, False),
-    "provider":     ("DJ_PROVIDER", "auto", str, False),
+    "provider":     ("DJ_PROVIDER", "auto", str, True),  # llm.chat resolves it per call
     "llamacpp_url": ("DJ_LLAMACPP_URL", "http://127.0.0.1:8080", str, False),
     "llamacpp_model": ("DJ_LLAMACPP_MODEL", "local", str, False),
     "ollama_url":   ("OLLAMA_URL", "http://localhost:11434", str, False),
     "ollama_model": ("DJ_OLLAMA_MODEL", "gemma4:e2b-it-qat", str, False),
     "openai_model": ("DJ_OPENAI_MODEL", "gpt-4o-mini", str, False),
-    "openai_api_key": ("OPENAI_API_KEY", "", str, False),
+    "openai_api_key": ("OPENAI_API_KEY", "", str, True),  # llm.py resolves it per call
     "llm_timeout":  ("DJ_LLM_TIMEOUT", "300", int, False),
     "music_dir":    ("DJ_MUSIC_DIR", "~/Music", str, False),
     "tts_voice":    ("DJ_TTS_VOICE", "~/.config/djjamal/voices/en_US-lessac-medium.onnx", str, False),
@@ -91,8 +91,14 @@ def update(changes):
             data[k] = _coerce(v, typ)
         FILE.parent.mkdir(parents=True, exist_ok=True)
         tmp = FILE.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(data, indent=2))
-        os.chmod(tmp, 0o600)  # may contain the OpenAI key
+        try:
+            os.unlink(tmp)  # a crashed run's leftover may carry wider perms
+        except OSError:
+            pass
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC,
+                     0o600)  # key-bearing from the first byte, not after chmod
+        with os.fdopen(fd, "w") as f:
+            f.write(json.dumps(data, indent=2))
         os.replace(tmp, FILE)  # atomic — no partially-written settings file
     return list(changes)
 

@@ -8,6 +8,7 @@ from . import settings
 
 BUS_NAME = "org.mpris.MediaPlayer2.djk"
 OBJECT_PATH = "/org/mpris/MediaPlayer2"
+TRACK_ID = OBJECT_PATH + "/track0"
 
 _NODE_XML = """
 <node>
@@ -58,9 +59,14 @@ def playback_status(playing, paused=False):
     return "Paused" if paused else "Playing"
 
 
-def metadata_for(title):
-    """Pure builder for tests: now-playing title → MPRIS metadata dict."""
-    return {"xesam:title": (title or "DJ-K"), "xesam:artist": ["DJ-K"]}
+def metadata_for(title, duration=None):
+    """Pure builder for tests: now-playing title → MPRIS metadata dict.
+    trackid is required by the spec; length powers the clients' seek slider."""
+    d = {"xesam:title": (title or "DJ-K"), "xesam:artist": ["DJ-K"],
+         "mpris:trackid": TRACK_ID}
+    if duration:
+        d["mpris:length"] = int(duration * MICROSECONDS)
+    return d
 
 
 def available():
@@ -74,25 +80,32 @@ def start(player):
     """Own the MPRIS bus name and mirror `player` state; no-op if unavailable."""
     if not available():
         return None
-    import gi
-    gi.require_version("Gio", "2.0")
-    from gi.repository import Gio, GLib
+    try:  # gi present but broken (partial install, bad cache) must no-op, not crash
+        import gi
+        gi.require_version("Gio", "2.0")
+        from gi.repository import Gio, GLib
+    except Exception:
+        return None
 
     node = Gio.DBusNodeInfo.new_for_xml(_NODE_XML)
     for iface in node.interfaces:
         Gio.DBusNodeInfo.lookup_interface(node, iface.name)
     player_iface = node.interfaces[1].name
-    state = {"status": "Stopped", "title": None, "pos": 0, "vol": 1.0}
+    state = {"status": "Stopped", "title": None, "pos": 0, "vol": 1.0, "dur": None}
 
     def props_for(name):
         if name == "PlaybackStatus":
             return GLib.Variant("s", state["status"])
         if name == "Metadata":
-            m = metadata_for(state["title"])
-            return GLib.Variant("a{sv}", {
+            m = metadata_for(state["title"], state.get("dur"))
+            d = {
                 "xesam:title": GLib.Variant("s", m["xesam:title"]),
                 "xesam:artist": GLib.Variant("as", m["xesam:artist"]),
-            })
+                "mpris:trackid": GLib.Variant("o", m["mpris:trackid"]),
+            }
+            if "mpris:length" in m:
+                d["mpris:length"] = GLib.Variant("x", m["mpris:length"])
+            return GLib.Variant("a{sv}", d)
         if name == "Position":
             return GLib.Variant("x", int(state["pos"] * MICROSECONDS))
         if name == "Volume":
@@ -154,8 +167,15 @@ def start(player):
             changes.append("Metadata")
         if st["pos"] is not None:
             state["pos"] = st["pos"]
+        if st.get("duration") != state["dur"]:
+            state["dur"] = st.get("duration")
+            if "Metadata" not in changes:
+                changes.append("Metadata")  # length powers the clients' seek slider
         if st["volume"] is not None:
-            state["vol"] = st["volume"] / 100.0
+            vol = st["volume"] / 100.0
+            if vol != state["vol"]:
+                state["vol"] = vol
+                changes.append("Volume")  # keep desktop sliders two-way
         if changes:
             emit_changed(changes)
         return GLib.SOURCE_CONTINUE
@@ -172,9 +192,9 @@ def start(player):
             if iface == player_iface:
                 if method == "Next":
                     player.skip()
-                elif method in ("PlayPause", "Play"):
-                    player.pause()
-                elif method in ("Pause", "Stop"):
+                elif method in ("PlayPause", "Play", "Pause"):
+                    player.pause()  # Pause must pause — stop() would wipe the queue
+                elif method == "Stop":
                     player.stop()
                 elif method == "Previous":
                     player.seek(0)

@@ -2,7 +2,7 @@
 import subprocess
 from urllib.parse import urlparse
 
-ALLOWED_PREFIXES = ("http://", "https://", "ytsearch", "ytdl")
+ALLOWED_PREFIXES = ("http://", "https://", "ytsearch")
 
 
 def validate_source(source):
@@ -15,7 +15,7 @@ def validate_source(source):
         u = urlparse(source)
         if u.scheme in ("http", "https") and u.hostname:
             return source
-        if u.scheme.startswith("ytsearch") or u.scheme == "ytdl":
+        if u.scheme.startswith("ytsearch"):
             return source
         raise ValueError(f"blocked malformed URL: {source!r}")
     if os.path.isfile(source):  # local path (not starting with '-', no option injection)

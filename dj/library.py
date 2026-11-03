@@ -17,21 +17,28 @@ def scan(force=False):
     """Return list of track dicts {path, name}. Cached, 1 day TTL.
     Cache is keyed to MUSIC_DIR so switching dirs never serves the old list."""
     if CACHE.exists() and not force and time.time() - CACHE.stat().st_mtime < 86400:
-        cached = json.loads(CACHE.read_text())
+        try:
+            cached = json.loads(CACHE.read_text())
+        except (OSError, ValueError):  # corrupt cache — rescan, never crash startup
+            cached = None
         # legacy caches were a bare list; current caches carry their dir
-        if isinstance(cached, dict) and cached.get("dir") == str(MUSIC_DIR):
+        if (isinstance(cached, dict) and cached.get("dir") == str(MUSIC_DIR)
+                and isinstance(cached.get("tracks"), list)):
             return cached["tracks"]
     tracks = []
     for p in sorted(MUSIC_DIR.rglob("*")):
         if p.suffix.lower() in AUDIO_EXT:
             tracks.append({"path": str(p), "name": p.stem})
     CACHE.parent.mkdir(parents=True, exist_ok=True)
-    CACHE.write_text(json.dumps({"dir": str(MUSIC_DIR), "tracks": tracks}))
+    tmp = CACHE.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps({"dir": str(MUSIC_DIR), "tracks": tracks}))
+    os.replace(tmp, CACHE)  # atomic — no half-written cache
     return tracks
 
 
 def search(tracks, query):
-    """Fuzzy-ish search: all words in query appear in track name (case-insensitive)."""
+    """Fuzzy-ish search: all words in query appear in track name (case-insensitive).
+    An empty query matches everything (callers rely on this for /list)."""
     words = query.lower().split()
     return [t for t in tracks if all(w in t["name"].lower() for w in words)]
 

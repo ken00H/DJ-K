@@ -9,11 +9,12 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dj import djbrain, library, mpris, settings, tray, tts
-from dj.main import enqueue_smart, generate_track
+from dj.main import dj_say, enqueue_smart, generate_track
 from dj.player import Player
 
 INDEX_HTML = (Path(__file__).with_name("index.html")).read_text()
 HISTORY = []
+_HIST_LOCK = threading.Lock()  # handler threads run concurrently
 
 
 def cross_site(headers):
@@ -67,7 +68,8 @@ def make_handler(player, state):
                 tracks = [] if not settings.source_local() else state["library"]
                 self._json([{"name": t["name"], "path": t["path"]} for t in tracks])
             elif self.path == "/api/history":
-                self._json(HISTORY)
+                with _HIST_LOCK:
+                    self._json(list(HISTORY))
             elif self.path == "/api/settings":
                 snap = settings.snapshot()
                 snap["openai_api_key"] = settings.mask(snap["openai_api_key"])
@@ -98,20 +100,24 @@ def make_handler(player, state):
                                           history=HISTORY)
                 except Exception as e:
                     return self._json({"reply": str(e), "action": "chat", "tracks": []})
-                HISTORY.extend([{"role": "user", "content": text},
-                                {"role": "assistant", "content": brain["reply"]}])
-                del HISTORY[:-6]
+                with _HIST_LOCK:
+                    HISTORY.extend([{"role": "user", "content": text},
+                                    {"role": "assistant", "content": brain["reply"]}])
+                    del HISTORY[:-6]
                 try:
                     if brain["action"] == "stop":
                         player.stop()
                     elif brain["action"] == "generate" and brain["tracks"]:
-                        generate_track(player, brain["tracks"][0])  # status shows via queue
+                        # no chat event channel yet — at least log progress server-side
+                        generate_track(player, brain["tracks"][0], notify=print)
                     elif brain["action"] in ("play", "search", "queue", "playlist") and brain["tracks"]:
                         if brain["action"] in ("play", "search"):
                             player.stop()
                         enqueue_smart(player, state["library"], brain["tracks"])
                 except ValueError as e:
                     brain["reply"] += f" (skipped: {e})"
+                if brain["action"] in ("play", "search", "queue", "playlist", "generate"):
+                    dj_say(player, brain["reply"])  # speak over ducked music, like the REPL
                 return self._json(brain)
 
             if self.path == "/api/settings":
@@ -137,6 +143,8 @@ def make_handler(player, state):
 
             if self.path == "/api/cmd":
                 cmd = data.get("cmd")
+                if not isinstance(cmd, str):  # unhashable junk must not kill the conn
+                    return self._json({"error": "bad cmd"}, 400)
                 if cmd == "volume":
                     try:
                         player.volume(int(data.get("value", 100)))
@@ -152,8 +160,11 @@ def make_handler(player, state):
                     player.stop()  # kill mpv now; exit after the reply flushes
                     threading.Timer(0.5, os._exit, (0,)).start()
                 else:
-                    {"skip": player.skip, "pause": player.pause,
-                     "stop": player.stop}.get(cmd, lambda: None)()
+                    fn = {"skip": player.skip, "pause": player.pause,
+                          "stop": player.stop}.get(cmd)
+                    if fn is None:
+                        return self._json({"error": "unknown cmd"}, 400)
+                    fn()
                 return self._json({"ok": True})
 
             if self.path == "/api/track":
@@ -185,6 +196,7 @@ def make_handler(player, state):
 def serve(port=None):
     if port is None:
         port = settings.resolve("web_port")
+    tts.sweep_temp_audio()  # last run's orphaned voice/generated wavs
     state = {"library": library.scan()}
     player = Player()
     mpris.start(player)  # desktop presence: media controls (no-op if no gi)

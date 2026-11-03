@@ -2,6 +2,7 @@
 the same validated mpv path — no extra player, no new hard dependency
 (app runs stdlib-only when piper or the voice model is absent)."""
 import atexit
+import glob
 import os
 import shutil
 import subprocess
@@ -13,7 +14,24 @@ from . import mpvproc, settings
 
 MAX_CHARS = 280
 _live = []  # in-flight voice mpv processes (cleaned up on exit/quit)
-atexit.register(lambda: stop_all())
+
+
+def sweep_temp_audio():
+    """Delete last run's orphaned temp audio (voice wavs, generated tracks and
+    their IPC sockets) — left behind when quit paths hard-exit mid-playback.
+    # ponytail: startup sweep only; a wav generated this session lives until
+    the next restart (reaping after playback would need player coupling)"""
+    for pat in ("djk-tts-*.wav", "djgen-*.wav", "djjamal-*.sock"):
+        for p in glob.glob(os.path.join(tempfile.gettempdir(), pat)):
+            try:
+                os.unlink(p)
+            except OSError:
+                pass
+            if not p.endswith(".sock"):  # tts/gen wavs keep their socket next to them
+                try:
+                    os.unlink(p + ".sock")
+                except OSError:
+                    pass
 
 
 def stop_all():
@@ -24,6 +42,9 @@ def stop_all():
         except Exception:
             pass
     _live.clear()
+
+
+atexit.register(stop_all)
 
 
 def _voice():
@@ -57,7 +78,7 @@ def speak(text):
     text = clip(text)
     if not text or not available():
         return None
-    fd, wav = tempfile.mkstemp(suffix=".wav")
+    fd, wav = tempfile.mkstemp(suffix=".wav", prefix="djk-tts-")
     os.close(fd)
     try:
         subprocess.run(

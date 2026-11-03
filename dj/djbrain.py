@@ -1,5 +1,6 @@
 """DJ brain: persona prompt + LLM call, returns {reply, action, tracks}."""
 import json
+import random
 import re
 
 from . import library, llm, settings
@@ -30,10 +31,16 @@ def think(user_msg, tracks_hint=None, history=None):
            f"YouTube {'on' if settings.source_youtube() else 'OFF'}, "
            f"AI generation {'on' if settings.musicgen() else 'OFF'}")
     if settings.source_local():
-        lib = "\n".join(f"- {t['name']}" for t in (tracks_hint or [])[:library.MAX_TRACKS_TO_LLM])
-        user = f"Sources available: {src}\nLocal library:\n{lib}\n\nUser says: {user_msg}"
+        # shuffle before the cap: a fixed slice would bias the hint to the first
+        # 120 tracks alphabetically and hide the rest of the library forever
+        hint = list(tracks_hint or [])
+        random.shuffle(hint)
+        lib = "\n".join(f"- {t['name']}" for t in hint[:library.MAX_TRACKS_TO_LLM])
+        user = (f"Sources available: {src}\nLocal library:\n{lib}\n\n"
+                f"User says: {user_msg}\n\nReply with only the JSON object.")
     else:
-        user = f"Sources available: {src}\n\nUser says: {user_msg}"
+        user = (f"Sources available: {src}\n\nUser says: {user_msg}"
+                f"\n\nReply with only the JSON object.")
     messages.append({"role": "user", "content": user})
     raw = llm.chat(messages)
     return _parse(raw)
@@ -51,5 +58,12 @@ def _parse(raw):
     d["reply"] = "" if d["reply"] is None else str(d["reply"])
     d["action"] = d.get("action", "chat") if d.get("action") in (
         "play", "queue", "playlist", "stop", "chat", "search", "generate") else "chat"
-    d["tracks"] = [str(t) for t in (d.get("tracks") or [])][:20]
+    tracks = d.get("tracks")
+    if isinstance(tracks, str):  # LLM sent a bare string — one track, not chars
+        tracks = [tracks]
+    elif not isinstance(tracks, list):
+        tracks = []
+    d["tracks"] = [str(t) for t in tracks][:20]
+    if d["action"] in ("play", "queue", "playlist", "search", "generate") and not d["tracks"]:
+        d["action"] = "chat"  # playback action with nothing to play — don't hype a no-op
     return d
