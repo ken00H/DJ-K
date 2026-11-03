@@ -5,7 +5,9 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [unreleased]
 
-### Fixed (audit round 4 — full egm-review pipeline, `consolidated_review_report.md`)
+## [0.9.3] — 2026-11-01
+
+Third + fourth audit rounds (every module, UI, tests, CI re-read; round 4 ran the full egm-review pipeline — see `consolidated_review_report.md`). Round 4 live-verified: crossfade ramp (mid-ramp 50 → settled 100), MPRIS Pause/PlayPause + trackid/length metadata, brain round-trip on llama.cpp, settings save, pause/volume/stop via API, zero socket/temp-wav leaks after stop.
 
 Crash-class:
 - A failed volume query during a transition (`None` from the 1 s IPC timeout or a dying outgoing mpv) crashed `/skip` with a `TypeError` or left the incoming track playing silently at volume 0 — now falls back to 100
