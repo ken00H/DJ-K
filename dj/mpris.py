@@ -4,7 +4,7 @@ the system GObject introspection package (python3-gi, like mpv a system
 install, not pip); silently off when absent (CI, Windows, headless)."""
 import os
 
-from . import settings
+from . import musicgen, settings, tts
 
 BUS_NAME = "org.mpris.MediaPlayer2.djk"
 OBJECT_PATH = "/org/mpris/MediaPlayer2"
@@ -204,8 +204,10 @@ def start(player):
                     player.seek(params[1] / MICROSECONDS)
                 invocation.return_value(None)
             elif method == "Quit":
+                tts.stop_all()
+                musicgen.stop_all()
                 player.stop()
-                invocation.return_value(None)
+                os._exit(0)  # CanQuit is advertised — Quit must actually exit
 
         def on_get(*a):
             prop = a[-1]  # (…, iface, prop) — leading args vary by pygobject

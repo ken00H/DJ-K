@@ -3,7 +3,7 @@ python3-gi with AppIndicator3 (Ubuntu GNOME ships the shell side via
 ubuntu-appindicators). Silent no-op when unavailable."""
 import os
 
-from . import glibloop, settings, tts
+from . import glibloop, musicgen, settings, tts
 
 
 def _indicator_module():
@@ -53,7 +53,8 @@ def start(player, icon_path):
     item("⏸ Play/Pause", player.pause)
     item("⏹ Stop", player.stop)
     menu.append(Gtk.SeparatorMenuItem())
-    item("✕ Quit DJ-K", lambda: (tts.stop_all(), player.stop(), os._exit(0)))
+    item("✕ Quit DJ-K", lambda: (tts.stop_all(), musicgen.stop_all(),
+                                 player.stop(), os._exit(0)))
     menu.show_all()
 
     try:  # indicator service broken (no appindicator daemon) must no-op, not crash

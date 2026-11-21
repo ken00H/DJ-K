@@ -95,6 +95,14 @@ def make_handler(player, state):
                 text = str(data.get("text", "")).strip()
                 if not text:
                     return self._json({"error": "empty"}, 400)
+                if text in ("/quit", "/exit"):
+                    # REPL-parity exit: no brain call — a dead provider chain
+                    # must not be able to stall shutdown
+                    tts.stop_all()
+                    player.stop()  # kill mpv now; exit after the reply flushes
+                    threading.Timer(0.5, self.server.shutdown).start()
+                    return self._json({"reply": "That's a wrap — DJ-K signing off. 🎧",
+                                       "action": "chat", "tracks": [], "quit": True})
                 try:
                     brain = djbrain.think(text, tracks_hint=state["library"],
                                           history=HISTORY)
@@ -158,7 +166,7 @@ def make_handler(player, state):
                 elif cmd == "quit":
                     tts.stop_all()
                     player.stop()  # kill mpv now; exit after the reply flushes
-                    threading.Timer(0.5, os._exit, (0,)).start()
+                    threading.Timer(0.5, self.server.shutdown).start()
                 else:
                     fn = {"skip": player.skip, "pause": player.pause,
                           "stop": player.stop}.get(cmd)

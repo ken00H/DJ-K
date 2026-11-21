@@ -81,18 +81,19 @@ class MusicGen(unittest.TestCase):
             self.assertFalse(musicgen.available())
 
     def test_generate_prompt_sanitized_and_secs_clamped(self):
-        # generate() must sanitize before touching the subprocess; probe via a fake runner
+        # generate() must sanitize before touching the subprocess; probe via a fake Popen
         from dj import musicgen
         seen = {}
 
-        def fake_run(argv, **kw):
-            seen["prompt"] = argv[4]
-            seen["secs"] = argv[5]
-            raise subprocess.CalledProcessError(1, "py")  # fail fast
+        class FakePopen:
+            def __init__(self, argv, **kw):
+                seen["prompt"] = argv[4]
+                seen["secs"] = argv[5]
+                raise subprocess.CalledProcessError(1, "py")  # fail fast
 
         with mock.patch.object(musicgen, "VENV_PY", Path("/bin/true")), \
              mock.patch.object(musicgen, "available", lambda: True), \
-             mock.patch.object(musicgen.subprocess, "run", fake_run):
+             mock.patch.object(musicgen.subprocess, "Popen", FakePopen):
             musicgen.generate("  lo-fi\n  beat  ", secs=999)
         self.assertEqual(seen["prompt"], "lo-fi beat")
         self.assertEqual(seen["secs"], "30")
@@ -406,6 +407,12 @@ class AuditFixes(unittest.TestCase):
         self.assertEqual(settings.resolve("web_port"), 8090)
         self.assertEqual(settings.resolve("gen_python"), "")
         self.assertIn("web_port", settings.RESTART_KEYS)
+        # v0.9.4 keys: every SCHEMA key must have its live helper wired
+        self.assertEqual(settings.resolve("tts_volume"), 90)
+        self.assertTrue(settings.loudnorm())
+        self.assertEqual(settings.tts_volume(), 90)
+        self.assertNotIn("tts_volume", settings.RESTART_KEYS)
+        self.assertNotIn("loudnorm", settings.RESTART_KEYS)
 
     def test_settings_atomic_update_leaves_no_tmp(self):
         from dj import settings
@@ -471,15 +478,15 @@ class AuditRound3(unittest.TestCase):
         sent = []
         with mock.patch.object(Player, "_ipc",
                                staticmethod(lambda sock, cmd: sent.append(cmd))), \
+             mock.patch("dj.player.time"), \
              mock.patch.object(p, "volume", lambda: 0):
             p.duck(True)
             p.duck(False)
-        self.assertEqual(sent[-1], ["set_property", "volume", 0])
-        self.assertEqual(sent[0], ["set_property", "volume", 25])
+        self.assertTrue(sent)  # ramp ran (0 -> 0, muted stays muted)
+        self.assertTrue(all(c == ["set_property", "volume", 0] for c in sent))
 
-    def test_nested_duck_keeps_real_pre_duck_level(self):
-        # two overlapping DJ lines: the second duck must not snapshot the
-        # already-ducked 25 as the restore target (music stayed quiet forever)
+    def test_duck_is_relative_and_ramped(self):
+        # duck used to be absolute 25 — at master 20 the "duck" RAISED the music
         from dj.player import Player
         p = Player.__new__(Player)
         p._pre_duck = 100
@@ -488,13 +495,51 @@ class AuditRound3(unittest.TestCase):
         sent = []
         with mock.patch.object(Player, "_ipc",
                                staticmethod(lambda sock, cmd: sent.append(cmd))), \
+             mock.patch("dj.player.time"), \
+             mock.patch.object(p, "volume", lambda: 20):
+            p.duck(True)
+        levels = [c[2] for c in sent]
+        self.assertEqual(levels[-1], 5)          # 25% of 20, not 25
+        self.assertTrue(all(v <= 20 for v in levels))  # never louder than before
+        self.assertEqual(len(levels), 4)         # ramped, not a single step
+
+    def test_nested_duck_keeps_real_pre_duck_level(self):
+        # two overlapping DJ lines: the second duck must not snapshot the
+        # already-ducked level as the restore target (music stayed quiet forever)
+        from dj.player import Player
+        p = Player.__new__(Player)
+        p._pre_duck = 100
+        p._duck_depth = 0
+        p.sock_path = "/nonexistent.sock"
+        sent = []
+        with mock.patch.object(Player, "_ipc",
+                               staticmethod(lambda sock, cmd: sent.append(cmd))), \
+             mock.patch("dj.player.time"), \
              mock.patch.object(p, "volume", lambda: 80):
-            p.duck(True)   # A: 80 -> 25
+            p.duck(True)   # A: 80 -> 20 (ramp 65,50,35,20)
             p.duck(True)   # B: already ducked — no second snapshot
             p.duck(False)  # A leaves: still ducked
-            p.duck(False)  # B leaves: restore 80
-        self.assertEqual(sent, [["set_property", "volume", 25],
-                                ["set_property", "volume", 80]])
+            p.duck(False)  # B leaves: ramp back to 80
+        levels = [c[2] for c in sent]
+        self.assertEqual(levels[:4], [65, 50, 35, 20])
+        self.assertEqual(levels[4:], [35, 50, 65, 80])
+
+    def test_fade_out_starts_from_actual_volume(self):
+        # fade-out used to start from absolute 100 — blasted every crossfade
+        # when the listener was below full volume
+        from dj.player import Player
+        proc = mock.Mock()
+        proc.poll.return_value = None
+        sent = []
+        with mock.patch.object(Player, "_ipc",
+                               staticmethod(lambda sock, cmd: sent.append(cmd))), \
+             mock.patch.object(Player, "_unlink", staticmethod(lambda sock: None)), \
+             mock.patch("dj.player.time"):
+            Player._fade_and_kill(proc, "/s.sock", secs=0.01, start_vol=40)
+        levels = [c[2] for c in sent]
+        self.assertEqual(levels[0], 40)
+        self.assertEqual(levels[-1], 0)
+        proc.terminate.assert_called_once()
 
     def test_skip_stops_when_queue_was_all_dead_entries(self):
         from dj.player import Player
@@ -578,6 +623,109 @@ class AuditRound4(unittest.TestCase):
         self.assertTrue(d["mpris:trackid"].startswith("/org/mpris/MediaPlayer2"))
         self.assertEqual(d["mpris:length"], int(213.5 * mpris.MICROSECONDS))
         self.assertNotIn("mpris:length", mpris.metadata_for("Nightmare"))
+
+
+class V094Radio(unittest.TestCase):
+    """v0.9.4: loudnorm flag, voice volume scaling, pacing flags."""
+
+    def test_loudnorm_flag_toggles_and_tts_overrides(self):
+        from dj import mpvproc
+
+        def launch_argv(setting, kw):
+            with mock.patch.object(mpvproc.settings, "loudnorm", lambda: setting), \
+                 mock.patch.object(mpvproc.subprocess, "Popen",
+                                   return_value=mock.Mock()) as P:
+                mpvproc.launch("/s.sock", 100, "ytsearch1:x", **kw)
+                return P.call_args[0][0]
+
+        self.assertIn("--af=loudnorm", launch_argv(True, {}))
+        self.assertNotIn("--af=loudnorm", launch_argv(False, {}))
+        # explicit False (TTS voice) wins over the setting
+        self.assertNotIn("--af=loudnorm", launch_argv(True, {"loudnorm": False}))
+
+    def test_speak_volume_default_override_and_pacing(self):
+        from dj import tts
+        calls = []
+
+        class FakePopen:
+            returncode = 0
+
+            def __init__(self, argv, **kw):
+                calls.append(argv)
+
+            def communicate(self, input=None, timeout=None):
+                return (None, None)
+
+        with mock.patch.object(tts, "available", lambda: True), \
+             mock.patch.object(tts.settings, "tts_volume", lambda: 90), \
+             mock.patch.object(tts.subprocess, "Popen", FakePopen), \
+             mock.patch.object(tts.mpvproc, "launch",
+                               return_value=mock.Mock()) as L:
+            tts.speak("hello there")
+            self.assertEqual(L.call_args[0][1], 90)  # default: tts_volume setting
+            tts.speak("hello there", volume=45)      # dj_say scales by master
+            self.assertEqual(L.call_args[0][1], 45)
+            argv = calls[0]
+            self.assertIn("--length-scale", argv)
+            self.assertIn("--sentence-silence", argv)
+
+
+class Shutdown(unittest.TestCase):
+    """Quit paths must leave nothing playing or burning CPU behind them."""
+
+    def test_stop_terminates_mid_crossfade_partner(self):
+        # stop() used to miss the outgoing crossfade mpv (owned only by the
+        # fade thread) — quitting mid-ramp left audio playing after exit
+        from dj.player import Player
+        p = Player.__new__(Player)
+        p.queue = [("/a.mp3", "a")]
+        p._lock = threading.RLock()
+        p._fading = []
+        cur = mock.Mock()
+        cur.poll.return_value = None
+        p.proc = cur
+        p.sock_path = "/cur.sock"
+        old = mock.Mock()
+        old.poll.return_value = None
+        p._fading.append((old, "/old.sock"))
+        with mock.patch.object(p, "_unlink", lambda sock: None):
+            p.stop()
+        old.terminate.assert_called_once()
+        cur.terminate.assert_called_once()
+        self.assertEqual(p._fading, [])
+        self.assertEqual(p.queue, [])
+
+    def test_fade_and_kill_unregisters_partner(self):
+        from dj.player import Player
+        proc = mock.Mock()
+        proc.poll.return_value = None
+        reg = [(proc, "/s.sock")]
+        with mock.patch.object(Player, "_ipc",
+                               staticmethod(lambda sock, cmd: None)), \
+             mock.patch.object(Player, "_unlink", staticmethod(lambda sock: None)), \
+             mock.patch("dj.player.time"):
+            Player._fade_and_kill(proc, "/s.sock", secs=0.01, registry=reg)
+        proc.terminate.assert_called_once()
+        self.assertEqual(reg, [])
+
+    def test_stop_all_terminates_synth_and_voice_children(self):
+        from dj import tts
+        live, synth = mock.Mock(), mock.Mock()
+        tts._live.append(live)
+        tts._synth.append(synth)
+        tts.stop_all()
+        live.terminate.assert_called_once()
+        synth.terminate.assert_called_once()
+        self.assertEqual(tts._live, [])
+        self.assertEqual(tts._synth, [])
+
+    def test_musicgen_stop_all_terminates_generation_child(self):
+        from dj import musicgen
+        gen = mock.Mock()
+        musicgen._gen.append(gen)
+        musicgen.stop_all()
+        gen.terminate.assert_called_once()
+        self.assertEqual(musicgen._gen, [])
 
 
 if __name__ == "__main__":

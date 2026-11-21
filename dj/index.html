@@ -184,7 +184,9 @@
     <div class="row"><label for="s_musicgen">AI track generation</label><label class="switch"><input type="checkbox" id="s_musicgen"><span></span></label></div>
     <h3>Playback <small>(applies instantly)</small></h3>
     <div class="row"><label for="s_crossfade">Crossfade</label><label class="switch"><input type="checkbox" id="s_crossfade"><span></span></label></div>
+    <div class="row"><label for="s_loudnorm">Loudness match (EBU R128)</label><label class="switch"><input type="checkbox" id="s_loudnorm"><span></span></label></div>
     <div class="row"><label for="s_tts">DJ voice</label><label class="switch"><input type="checkbox" id="s_tts"><span></span></label></div>
+    <div class="row"><label for="s_tts_volume">DJ voice volume</label><input type="text" id="s_tts_volume"></div>
     <div class="row"><label for="s_beatmatch">Beatmatch</label><label class="switch"><input type="checkbox" id="s_beatmatch"><span></span></label></div>
     <h3>Desktop <small>(applies on restart)</small></h3>
     <div class="row"><label for="s_mpris">Media controls (MPRIS)</label><label class="switch"><input type="checkbox" id="s_mpris"><span></span></label></div>
@@ -244,6 +246,7 @@ document.getElementById('f').onsubmit = async e => {
     const timer = setTimeout(() => ctl.abort(), 120000);
     try {
       const d = await (await post('/api/chat', {text}, {signal: ctl.signal})).json();
+      if (d.quit) { busy = false; shutDownUi(); return; }  // /quit typed in chat
       t.className = 'msg dj';
       t.innerHTML = '<b>DJ-K</b> ' + esc(d.reply);
     } finally { clearTimeout(timer); }
@@ -318,7 +321,8 @@ fetch('/api/history').then(r => r.json()).then(h => {
 }).catch(() => {});
 
 // --- settings ---
-const KEYS = ["crossfade","tts","beatmatch","musicgen","source_local","source_youtube",
+const KEYS = ["crossfade","loudnorm","tts","tts_volume","beatmatch","musicgen",
+  "source_local","source_youtube",
   "mpris","tray","provider","llamacpp_url","llamacpp_model",
   "ollama_url","ollama_model","openai_model","openai_api_key","llm_timeout",
   "music_dir","tts_voice","gen_python","web_port"];
@@ -387,11 +391,15 @@ const enterDead = html => {
   d.style.display = 'flex';
   d.innerHTML = html;
 };
+const shutDownUi = () => {
+  window.close();  // honored only where the browser allows it — dead screen is the fallback
+  enterDead('DJ-K has shut down.<br>Restart with <code>./run.sh web</code> or the app-grid entry.');
+  document.title = 'DJ-K — shut down';
+};
 document.getElementById('power').onclick = async () => {
   if (!confirm('Shut down DJ-K?')) return;
   try { await post('/api/cmd', {cmd:'quit'}); } catch {}
-  enterDead('DJ-K has shut down.<br>Restart with <code>./run.sh web</code> or the app-grid entry.');
-  document.title = 'DJ-K — shut down';
+  shutDownUi();
 };
 
 // --- state poll ---

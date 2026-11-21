@@ -17,6 +17,8 @@ _lock = threading.Lock()
 SCHEMA = {
     "crossfade":    ("DJ_CROSSFADE", "1", bool, True),
     "tts":          ("DJ_TTS", "1", bool, True),
+    "tts_volume":   ("DJ_TTS_VOLUME", "90", int, True),
+    "loudnorm":     ("DJ_LOUDNORM", "1", bool, True),
     "beatmatch":    ("DJ_BEATMATCH", "1", bool, True),
     "musicgen":     ("DJ_MUSICGEN", "1", bool, True),
     "source_local": ("DJ_SOURCE_LOCAL", "1", bool, True),
@@ -117,6 +119,14 @@ def crossfade():
 
 def tts():
     return resolve("tts")
+
+
+def tts_volume():
+    return resolve("tts_volume")
+
+
+def loudnorm():
+    return resolve("loudnorm")
 
 
 def beatmatch():

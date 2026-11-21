@@ -3,7 +3,7 @@
 ## Open (actively working)
 | Project | Next step | Last touched |
 |---------|-----------|--------------|
-| DJ-K (AI personal DJ) | audit round 4 resolved (goldfish_review_report.md): 32 fixes applied — sweep sockets, bpm-entry guard, nested duck, tempo-drift carry, skip-lock release, MPRIS Pause/metadata, /play REPL command, settings key live-flag, web panel refetch; 63 tests green, ruff clean, uncommitted — next: user reviews diff, then commit+tag v0.9.3 (no git ops without approval) | 2026-11-03 |
+| DJ-K (AI personal DJ) | **v0.9.4 in progress (uncommitted)**: loudnorm/voice work + exit-flow hardening done and live-verified (quit reaps crossfade partner + piper/musicgen children, graceful web shutdown, chat `/quit`, `window.close`); next: user ear-tests the voices, then the commit decision — open loops unchanged: web chat error channel, aborted-chat server-side cancel, raw-JSON assistant history | 2026-11-21 |
 
 ## Parked (interesting, paused ON PURPOSE)
 | Project | Reopen trigger | Closed? |
@@ -29,3 +29,6 @@
 - DJ-K unreleased: web quit button + icon redesign committed; second full audit fixed (P0 no-gi startup crash, POST CSRF, mpv-missing queue death, invisible pause state, TTS wav leak, volume-stomp) + web UI floor polish (tokens/focus/motion/SVG icons/mobile)
 - DJ-K v0.9.2 released: quit button + icon fix + full audit-hardening round (f5a14a6), fresh README screenshots; 50 tests, 3-OS CI green
 - DJ-K v0.9.3 (uncommitted): audit round 3 — true crossfade (fade-in verified live 24→80), corrupt-cache startup crash, tracks-string garbage queries, socket/temp-wav leaks (stop now unlinks; startup sweep), duck-at-zero, bpm cache lock, web chat speaks, /api/cmd hardening, provider live-toggle; 57 tests green
+- DJ-K v0.9.3 committed+pushed (ffa6d07): audit round 4 via egm-review pipeline — 32 fixes (bpm-entry/library-shape guards, nested duck, tempo-drift carry, skip-lock release, MPRIS Pause+trackid/length, /play REPL command, web panel refetch, key live-flag); 63 tests green, ruff clean
+- DJ-K v0.9.3 RELEASED (tag + GitHub release, 0afda06): round 4 live-verified — crossfade mid-ramp 50→settled 100, MPRIS Pause paused (queue kept) + trackid/length in Metadata, brain JSON round-trip on local llama.cpp (15.9 s), pause/volume/settings/stop via API, 0 leaked sockets/wavs after stop
+- DJ-K v0.9.4 (uncommitted): exit-flow hardening — quit (button/chat/tray/MPRIS) reaps the mid-crossfade mpv + piper/musicgen children, web quit goes graceful (atexit runs again), `/quit`+`/exit` in chat, `window.close()` on shutdown; 71 tests green, live-verified (quit mid-ramp → 0 mpv, server exit 0)

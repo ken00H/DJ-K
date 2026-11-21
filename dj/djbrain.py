@@ -19,7 +19,8 @@ Actions:
   English prompt describing the music (genre, instruments, mood, tempo).
   Use only when the user asks you to create/make/generate music.
 Pick tracks from the local library when names match; otherwise invent good YouTube search queries.
-Keep replies short and fun. Use radio-DJ flavor, never more than 3 sentences."""
+Keep replies SHORT: one punchy sentence plus a quick tag, contractions, no lists, no URLs —
+a radio tag, not a monologue."""
 
 
 def think(user_msg, tracks_hint=None, history=None):

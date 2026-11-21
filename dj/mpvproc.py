@@ -2,6 +2,8 @@
 import subprocess
 from urllib.parse import urlparse
 
+from . import settings
+
 ALLOWED_PREFIXES = ("http://", "https://", "ytsearch")
 
 
@@ -23,11 +25,16 @@ def validate_source(source):
     raise ValueError(f"blocked non-file non-URL source: {source!r}")
 
 
-def launch(sock, start_volume, source, speed=1.0):
+def launch(sock, start_volume, source, speed=1.0, loudnorm=None):
     argv = ["mpv", "--no-video", "--really-quiet", "--no-terminal",
             f"--input-ipc-server={sock}", f"--volume={int(start_volume)}"]
     if speed != 1.0:  # beatmatch: pitch-corrected tempo match (mpv default)
         argv.append(f"--speed={speed:.4f}")
+    if settings.loudnorm() if loudnorm is None else loudnorm:
+        # EBU R128 real-time loudness normalization — evens out track-to-track
+        # volume jumps at transitions; lives on the filter layer so it never
+        # touches the user's volume property (slider/duck stay authoritative)
+        argv.append("--af=loudnorm")
     argv += ["--", validate_source(source)]
     try:
         return subprocess.Popen(argv, shell=False,

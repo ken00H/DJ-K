@@ -69,20 +69,25 @@ def enqueue_smart(player, lib, queries):
 
 
 def dj_say(player, text):
-    """Speak the DJ reply over ducked music in a background thread."""
+    """Speak the DJ reply over ducked music in a background thread. Duck FIRST,
+    then synthesize — synthesis takes seconds and the old order played music at
+    full volume through it, then stepped down right before the voice."""
     if not tts.available():
         return
 
     def run():
-        proc = tts.speak(text)      # blocks during synthesis, plays after
-        if not proc:
-            return
-        player.duck(True)
         try:
-            proc.wait(timeout=90)
-        except Exception:
-            proc.terminate()
-        player.duck(False)
+            player.duck(True)
+            vol = int(settings.tts_volume() * (player.volume() or 100) / 100)
+            proc = tts.speak(text, volume=vol)  # blocks during synthesis
+            if not proc:
+                return
+            try:
+                proc.wait(timeout=90)
+            except Exception:
+                proc.terminate()
+        finally:
+            player.duck(False)
 
     threading.Thread(target=run, daemon=True).start()
 

@@ -5,6 +5,26 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [unreleased]
 
+### Added / Fixed (v0.9.4 — "sounds like a radio station", per `concepts_brief.md`)
+
+Fixed — the transition/voice bugs the brainstorm's listener-path review found:
+- The crossfade fade-out started from **absolute 100** — at master volume below 100 every transition blasted to full volume for a step before fading; it now ramps from the track's actual level
+- The DJ-voice duck was a **fixed 25** — at master volume below 25 the "duck" *raised* the music; it now ducks to a quarter of the current level (master 0 stays muted) and ramps (~0.4 s) instead of stepping
+- The voice ducked *after* the multi-second piper synthesis — music played full volume through the dead time, then dipped right before the voice; duck now comes first
+- The DJ voice played at fixed full volume regardless of the master — new `DJ_TTS_VOLUME` (default 90) scales with the master slider
+
+Fixed — shutdown left things running behind a quit:
+- Quitting during a crossfade orphaned the **outgoing mpv** — audio kept playing after "DJ-K has shut down"; `Player.stop()` now reaps the mid-ramp partner too (every quit path routes through it)
+- Hard exits (`os._exit`) orphaned the **piper / MusicGen subprocesses** (MusicGen can burn CPU for minutes) — both are now tracked and terminated on every quit path; the web quit also no longer bypasses atexit (graceful `ThreadingHTTPServer.shutdown()` instead of `os._exit`)
+- MPRIS advertised `CanQuit: true` but the D-Bus `Quit` method only stopped playback — it now exits the whole program, like the tray's "✕ Quit DJ-K" (which also kills the MusicGen child now)
+
+Added:
+- **Loudness matching between tracks**: mpv's built-in EBU R128 `loudnorm` filter, on by default and live-toggleable (`DJ_LOUDNORM`, settings UI) — evens out quiet-after-loud jumps on local *and* YouTube sources; applied on the filter layer so the user's volume slider and duck stay authoritative
+- Voice pacing: piper `--length-scale 1.1 --sentence-silence 0.5`; DJ lines shortened (280→140 chars, persona asks for "one punchy sentence plus a tag")
+- Voice audition: `lessac-high` / `ryan-high` models downloadable for `DJ_TTS_VOICE` (default unchanged until one wins by ear)
+- **`/quit` in the web chat box** (and `/exit`) — exits the whole program like the REPL, no brain call so a dead provider chain can't stall it; bare `q` deliberately not intercepted
+- Power-button shutdown also tries `window.close()` on the tab; browsers that disallow it keep the "DJ-K has shut down" dead screen as before
+
 ## [0.9.3] — 2026-11-01
 
 Third + fourth audit rounds (every module, UI, tests, CI re-read; round 4 ran the full egm-review pipeline — see `consolidated_review_report.md`). Round 4 live-verified: crossfade ramp (mid-ramp 50 → settled 100), MPRIS Pause/PlayPause + trackid/length metadata, brain round-trip on llama.cpp, settings save, pause/volume/stop via API, zero socket/temp-wav leaks after stop.

@@ -20,6 +20,7 @@ class Player:
         self.queue = []          # list of (source, title) — source: file path or URL
         self.proc = None
         self.sock_path = None
+        self._fading = []        # (proc, sock) mid-crossfade partners — stop() reaps them
         self.current = None
         self.current_source = None  # path/URL of current track (for beatmatch)
         self.current_speed = 1.0    # --speed the current track plays at (beatmatch)
@@ -117,15 +118,23 @@ class Player:
             pass
 
     @staticmethod
-    def _fade_and_kill(proc, sock, secs=FADE_SECS):
+    def _fade_and_kill(proc, sock, secs=FADE_SECS, start_vol=100, registry=None):
         steps = 10
         for i in range(steps, -1, -1):
             if proc.poll() is not None:
                 break
-            Player._ipc(sock, ["set_property", "volume", max(0, int(100 * i / steps))])
+            # ramp from the track's ACTUAL volume — an absolute-100 start
+            # blasted every crossfade when the listener was below full volume
+            Player._ipc(sock, ["set_property", "volume",
+                               max(0, int(start_vol * i / steps))])
             time.sleep(secs / steps)
         proc.terminate()
         Player._unlink(sock)
+        if registry is not None:  # let stop() stop tracking this partner
+            try:
+                registry.remove((proc, sock))
+            except ValueError:
+                pass
 
     @staticmethod
     def _fade_in(sock, target, secs=FADE_SECS):
@@ -178,8 +187,11 @@ class Player:
                              args=(spawned[1], target), daemon=True).start()
         if had_audio:
             if fade:
+                self._fading.append((old_proc, old_sock))
                 threading.Thread(target=self._fade_and_kill,
-                                 args=(old_proc, old_sock), daemon=True).start()
+                                 args=(old_proc, old_sock, FADE_SECS, target,
+                                       self._fading),
+                                 daemon=True).start()
             else:
                 old_proc.terminate()
                 self._unlink(old_sock)  # no ramp thread to do it — don't leak the socket
@@ -214,6 +226,11 @@ class Player:
             if self.proc and self.proc.poll() is None:
                 self.proc.terminate()
             self._unlink(self.sock_path)  # no fade thread ran — don't leak the socket
+            for proc, sock in self._fading:  # mid-crossfade partners: nobody else owns them
+                if proc.poll() is None:
+                    proc.terminate()
+                self._unlink(sock)
+            self._fading = []
             self.proc, self.current, self.current_source = None, None, None
             self.sock_path = None
 
@@ -253,23 +270,33 @@ class Player:
                 "duration": dur,
                 "bpm": round(bpm, 1) if bpm else None}
 
+    def _ramp(self, sock, frm, to, secs=0.4, steps=4):
+        """Small volume ramp (no audible step edges). Blocking — duck callers
+        are already background threads. Same accepted-race family as the fades."""
+        for i in range(1, steps + 1):
+            Player._ipc(sock, ["set_property", "volume",
+                               max(0, int(frm + (to - frm) * i / steps))])
+            time.sleep(secs / steps)
+
     def duck(self, on):
-        """Duck music volume to 25% (on=True) / back to the pre-duck level —
-        used while the DJ voice speaks over the track. Overlapping DJ lines
-        nest: only the first duck snapshots the volume, the last unduck restores."""
+        """Duck music volume to a quarter of its level (on=True) / ramp back to
+        the pre-duck level — used while the DJ voice speaks over the track.
+        Relative (not a fixed 25): a fixed level RAISED the music when the
+        listener was below it. Overlapping DJ lines nest: only the first duck
+        snapshots the volume, the last unduck restores."""
         if on:
             self._duck_depth += 1
             if self._duck_depth > 1:
                 return  # already ducked — keep the real pre-duck level
             v = self.volume()  # explicit None check: volume 0 must duck back to 0
             self._pre_duck = v if v is not None else 100
-            self._ipc(self.sock_path, ["set_property", "volume", 25])
+            self._ramp(self.sock_path, self._pre_duck, int(self._pre_duck * 0.25))
         else:
             if self._duck_depth == 0:
                 return
             self._duck_depth -= 1
             if self._duck_depth == 0:
-                self._ipc(self.sock_path, ["set_property", "volume", self._pre_duck])
+                self._ramp(self.sock_path, int(self._pre_duck * 0.25), self._pre_duck)
 
     def _playing(self):
         return self.proc is not None and self.proc.poll() is None

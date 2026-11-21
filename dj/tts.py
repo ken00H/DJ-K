@@ -12,8 +12,9 @@ from pathlib import Path
 
 from . import mpvproc, settings
 
-MAX_CHARS = 280
+MAX_CHARS = 140  # one breath of radio talk, not a monologue
 _live = []  # in-flight voice mpv processes (cleaned up on exit/quit)
+_synth = []  # in-flight piper synthesis subprocesses (cleaned up on exit/quit)
 
 
 def sweep_temp_audio():
@@ -35,13 +36,14 @@ def sweep_temp_audio():
 
 
 def stop_all():
-    """Terminate any in-flight voice playback — used by quit paths and atexit."""
-    for p in _live:
-        try:
-            p.terminate()
-        except Exception:
-            pass
-    _live.clear()
+    """Terminate any in-flight voice playback or synthesis — quit paths and atexit."""
+    for procs in (_live, _synth):
+        for p in procs:
+            try:
+                p.terminate()
+            except Exception:
+                pass
+        procs.clear()
 
 
 atexit.register(stop_all)
@@ -72,21 +74,39 @@ def clip(text):
     return cut[:cut.rfind(" ")] + "…"
 
 
-def speak(text):
-    """Synthesize and start playing. Returns the mpv Popen (caller waits and
-    un-ducks) or None if unavailable/failed. Blocks during synthesis only."""
+def speak(text, volume=None):
+    """Synthesize and start playing at `volume` (default: the tts_volume
+    setting). Returns the mpv Popen (caller waits and un-ducks) or None if
+    unavailable/failed. Blocks during synthesis only."""
     text = clip(text)
     if not text or not available():
         return None
+    if volume is None:
+        volume = settings.tts_volume()
     fd, wav = tempfile.mkstemp(suffix=".wav", prefix="djk-tts-")
     os.close(fd)
     try:
-        subprocess.run(
-            ["piper", "-m", str(_voice()), "-f", wav],
-            input=text.encode(), stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL, check=True, timeout=120)
+        # ponytail: pacing constants, not settings — revisit only if the
+        # chosen voice reads rushed or clipped by ear
+        piper = subprocess.Popen(
+            ["piper", "-m", str(_voice()), "-f", wav,
+             "--length-scale", "1.1", "--sentence-silence", "0.5"],
+            stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL)
+        _synth.append(piper)  # tracked so quit paths can reap a mid-synthesis child
+        try:
+            piper.communicate(input=text.encode(), timeout=120)
+            if piper.returncode != 0:
+                raise subprocess.CalledProcessError(piper.returncode, piper.args)
+        except subprocess.TimeoutExpired:
+            piper.kill()  # communicate(timeout) leaves the child running
+            piper.wait()
+            raise
+        finally:
+            if piper in _synth:
+                _synth.remove(piper)
         sock = wav + ".sock"  # dummy path; mpv creates it
-        proc = mpvproc.launch(sock, 100, wav)
+        proc = mpvproc.launch(sock, volume, wav, loudnorm=False)
     except Exception:
         try:
             os.unlink(wav)

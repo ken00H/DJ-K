@@ -2,6 +2,7 @@
 The main app stays stdlib-only — generation runs as a subprocess of
 ~/.config/djjamal/gen-env/bin/python (created by the user, see README).
 Auto-disabled when the venv or model is absent."""
+import atexit
 import os
 import subprocess
 import tempfile
@@ -14,6 +15,8 @@ _VENV_BIN = ("Scripts/python.exe" if os.name == "nt" else "bin/python")
 VENV_PY = Path(settings.resolve("gen_python") or
                (Path.home() / ".config/djjamal/gen-env" / _VENV_BIN))
 DEFAULT_SECS = 12
+
+_gen = []  # in-flight generation subprocesses (cleaned up on exit/quit)
 
 # runs inside the venv: load MusicGen-small, write one wav, exit
 _SCRIPT = """
@@ -38,6 +41,19 @@ def available():
     return settings.musicgen() and VENV_PY.is_file()
 
 
+def stop_all():
+    """Terminate any in-flight generation subprocess — quit paths and atexit."""
+    for p in _gen:
+        try:
+            p.terminate()
+        except Exception:
+            pass
+    _gen.clear()
+
+
+atexit.register(stop_all)
+
+
 def generate(prompt, secs=DEFAULT_SECS, timeout=600):
     """Generate one wav for prompt. Returns (wav_path, None) or (None, error).
     Blocks for the whole synthesis — call from a worker thread."""
@@ -48,10 +64,21 @@ def generate(prompt, secs=DEFAULT_SECS, timeout=600):
     fd, wav = tempfile.mkstemp(suffix=".wav", prefix="djgen-")
     os.close(fd)
     try:
-        subprocess.run(
+        gen = subprocess.Popen(
             [str(VENV_PY), "-c", _SCRIPT, wav, prompt, str(secs)],
-            check=True, timeout=timeout,
             stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        _gen.append(gen)  # tracked so quit paths can reap a mid-generation child
+        try:
+            _, err = gen.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            gen.kill()  # communicate(timeout) leaves the child running
+            gen.communicate()
+            raise
+        finally:
+            if gen in _gen:
+                _gen.remove(gen)
+        if gen.returncode != 0:
+            raise subprocess.CalledProcessError(gen.returncode, gen.args, stderr=err)
         return wav, None
     except subprocess.CalledProcessError as e:
         _unlink(wav)

@@ -67,6 +67,7 @@ run.bat web       # web UI (Windows)
 Web UI: dark page with chat box, now-playing bar (title, BPM badge, seek bar),
 skip/pause/stop + quit buttons, volume slider, settings (gear), live queue panel,
 and a searchable library browser (click a track to queue it, ▶ to play it now).
+The chat box also takes `/quit` (or `/exit`) to shut the whole program down.
 Stdlib-only server (no FastAPI/Flask); binds to `127.0.0.1` only.
 Port configurable via `DJ_WEB_PORT`.
 
@@ -123,6 +124,8 @@ Everything is optional and silently off where unsupported (Windows, CI, headless
 | `DJ_SOURCE_YOUTUBE` | `1` | `0` disables the YouTube fallback |
 | `DJ_CROSSFADE` | `1` | `0` disables crossfade |
 | `DJ_TTS` | `1` | `0` disables the DJ voice |
+| `DJ_TTS_VOLUME` | `90` | DJ voice volume (scales with the master volume) |
+| `DJ_LOUDNORM` | `1` | `0` disables EBU R128 loudness matching between tracks |
 | `DJ_TTS_VOICE` | `~/.config/djjamal/voices/en_US-lessac-medium.onnx` | piper voice model |
 | `DJ_MUSICGEN` | `1` | `0` disables AI generation |
 | `DJ_BEATMATCH` | `1` | `0` disables tempo-matched transitions |
